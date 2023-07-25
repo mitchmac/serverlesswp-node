@@ -1,0 +1,31 @@
+{
+  "name": "serverlesswp",
+  "version": "0.1.0",
+  "description": "Run PHP on Lambda (AWS, Netlify, Vercel)",
+  "keywords": [
+    "serverless",
+    "wordpress",
+    "php",
+    "netlify",
+    "vercel"
+  ],
+  "homepage": "https://github.com/mitchmac/serverlesswp-node#readme",
+  "main": "src/index.js",
+  "author": "Mitch MacKenzie",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mitchmac/serverlesswp-node.git"
+  },
+  "dependencies": {
+    "isbinaryfile": "^5.0.0",
+    "node-fetch": "^2.6.9",
+    "wait-on": "^7.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0"
+  },
+  "scripts": {
+    "test": "jest --testPathIgnorePatterns 'e2e'"
+  }
+}
