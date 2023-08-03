@@ -19,11 +19,12 @@ async function handler(data) {
     await validate(data);
 
     const { event, docRoot } = data;
-
+    
     if (!php) {
         const env = {
             ...process.env,
-            LD_LIBRARY_PATH: `${libPath}:${process.env['LD_LIBRARY_PATH']}`
+            LD_LIBRARY_PATH: `${libPath}:${process.env['LD_LIBRARY_PATH']}`,
+            LD_PRELOAD: `${libPath}/libsqlite3.so.0`
         };
 
         //@TODO: configurable php.ini path
@@ -43,7 +44,7 @@ async function handler(data) {
         });
     
         php.on('error', function (err) {
-            console.log.error(err);
+            console.log(err);
         });
 
         php.stderr.on('data', data => {

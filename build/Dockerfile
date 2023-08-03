@@ -12,17 +12,26 @@ RUN yum -y groups install "Development tools" \
     libjpeg-devel \
     libexif \
     libexif-devel \
-    sqlite-devel \
     oniguruma-devel
 
-RUN curl -L http://ca3.php.net/get/php-8.1.21.tar.bz2/from/this/mirror --create-dirs -o /work/php.tar.bz2
+WORKDIR /sqlite
+RUN curl https://www.sqlite.org/2023/sqlite-autoconf-3420000.tar.gz | tar xzf -
+WORKDIR sqlite-autoconf-3420000
+RUN ./configure --libdir=/usr/lib64 --prefix=/usr
+RUN make
+RUN make install
 
 WORKDIR /work
+
+RUN curl -L http://ca3.php.net/get/php-8.1.22.tar.bz2/from/this/mirror --create-dirs -o /work/php.tar.bz2
 
 RUN tar -jxvf php.tar.bz2 \
   && mkdir php-81-bin
 
-WORKDIR /work/php-8.1.21
+WORKDIR /work/php-8.1.22
+
+#ENV SQLITE_LIBS="-L/sqlite/sqlite-autoconf-3420000/.libs -lsqlite3"
+#ENV SQLITE_CFLAGS="-I/sqlite/sqlite-autoconf-3420000"
 
 RUN ./configure \
   --prefix=/work/php-81-bin/ \
@@ -49,6 +58,6 @@ RUN ./configure \
   --with-bz2 \
   --with-zlib \
   --with-gettext \
-  --enable-opcache
+  --enable-opcache 
 
 RUN make install -j4

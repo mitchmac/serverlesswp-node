@@ -13,7 +13,7 @@ docker -D cp -L $container:/usr/lib64/libzip.so.5.0.0 ../php-files/lib/libzip.so
 docker -D cp -L $container:/usr/lib64/libxml2.so.2 ../php-files/lib/libxml2.so.2
 docker -D cp -L $container:/usr/lib64/libssl3.so ../php-files/lib/libssl3.so
 docker -D cp -L $container:/usr/lib64/libssh2.so.1 ../php-files/lib/libssh2.so.1
-docker -D cp -L $container:/usr/lib64/libsqlite3.so.0 ../php-files/lib/libsqlite3.so.0
+docker -D cp -L $container:/usr/lib64/libsqlite3.so.0.8.6 ../php-files/lib/libsqlite3.so.0
 docker -D cp -L $container:/usr/lib64/libsmime3.so ../php-files/lib/libsmime3.so
 docker -D cp -L $container:/usr/lib64/libsasl2.so.3 ../php-files/lib/libsasl2.so.3
 docker -D cp -L $container:/usr/lib64/libnss3.so ../php-files/lib/libnss3.so
