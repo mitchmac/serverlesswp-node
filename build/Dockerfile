@@ -23,12 +23,12 @@ RUN make install
 
 WORKDIR /work
 
-RUN curl -L http://ca3.php.net/get/php-8.1.22.tar.bz2/from/this/mirror --create-dirs -o /work/php.tar.bz2
+RUN curl -L http://ca3.php.net/get/php-8.1.23.tar.bz2/from/this/mirror --create-dirs -o /work/php.tar.bz2
 
 RUN tar -jxvf php.tar.bz2 \
   && mkdir php-81-bin
 
-WORKDIR /work/php-8.1.22
+WORKDIR /work/php-8.1.23
 
 #ENV SQLITE_LIBS="-L/sqlite/sqlite-autoconf-3420000/.libs -lsqlite3"
 #ENV SQLITE_CFLAGS="-I/sqlite/sqlite-autoconf-3420000"
