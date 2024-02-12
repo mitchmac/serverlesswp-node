@@ -15,6 +15,8 @@ const phpPath = path.resolve(__dirname, '../php-files/php');
 const phpIniPath = path.resolve(__dirname, '../php-files/php.ini');
 const cwd = path.resolve(__dirname, '../php-files');
 
+const plugins = require('./plugins');
+
 async function handler(data) {
     await validate(data);
 
@@ -98,7 +100,6 @@ async function handler(data) {
             urlPath = event.rawPath;
         }
 
-
         let requestHeaders;
         if (event.cookies) {
             let cookielist = '';
@@ -176,7 +177,6 @@ async function handler(data) {
           }
         }
 
-
         if (!headers['cache-control'] && response.status === 200 && (!data.hasOwnProperty('skipCacheControl') || (data.hasOwnProperty('skipCacheControl') && !data.skipCacheControl))) {
             let cacheControl = 'max-age=3600, s-maxage=86400';
 
@@ -237,7 +237,6 @@ async function validate(data) {
         throw new Error("The event property cannot be empty.");
     }
 
-
     if (!data.hasOwnProperty("docRoot")) {
         throw new Error("The docRoot or routerScript property is required.");
     }
@@ -266,3 +265,5 @@ async function exists(path) {
 
 module.exports = handler;
 module.exports.validate = validate;
+module.exports.registerPlugin = plugins.register;
+module.exports.getPlugins = plugins.getPlugins;
