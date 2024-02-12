@@ -20,8 +20,8 @@ test('Execute preRequest', async () => {
     const body = 'foo';
 
     plugins.register({
-        name: 'Hello World',
-        preRequest: async function(event) {
+        name: 'preRequest',
+        preRequest: async function(event, response) {
             return {
                 statusCode: 200,
                 body: event.test,
@@ -32,4 +32,48 @@ test('Execute preRequest', async () => {
     const response = await plugins.executePreRequest({test: body});
     expect(response.body).toEqual(body);
     expect(response.statusCode).toEqual(statusCode);
+});
+
+test('Execute multiple preRequest', async () => {
+    const body = 'foo';
+
+    plugins.register({
+        name: '1',
+        preRequest: async function(event, response) {
+            return {
+                statusCode: 200,
+                body: event.test,
+            }
+        },
+    });
+
+    plugins.register({
+        name: '2',
+        preRequest: async function(event, response) {
+            if (response?.statusCode) {
+                response.statusCode = response.statusCode + 1;
+            }
+            return response;
+        },
+    });
+
+    const response = await plugins.executePreRequest({test: body});
+    expect(response.body).toEqual(body);
+    expect(response.statusCode).toEqual(201);
+});
+
+test('Execute postRequest', async () => {
+    plugins.register({
+        name: 'postRequest',
+        postRequest: async function(event, response) {
+            return {
+                statusCode: response.statusCode + 1,
+                body: 'Foo'
+            }
+        }
+    });
+
+    const response = await plugins.executePostRequest({test: 'foo'}, {statusCode: 200, body: 'Test'});
+    expect(response.body).toEqual('Foo');
+    expect(response.statusCode).toEqual(201);
 });
