@@ -15,10 +15,17 @@ const phpPath = path.resolve(__dirname, '../php-files/php');
 const phpIniPath = path.resolve(__dirname, '../php-files/php.ini');
 const cwd = path.resolve(__dirname, '../php-files');
 
+const plugins = require('./plugins');
+
 async function handler(data) {
     await validate(data);
 
     const { event, docRoot } = data;
+
+    const preRequestResponse = await plugins.executePreRequest(event);
+    if (preRequestResponse != null) {
+        return preRequestResponse;
+    }
     
     if (!php) {
         const env = {
@@ -98,7 +105,6 @@ async function handler(data) {
             urlPath = event.rawPath;
         }
 
-
         let requestHeaders;
         if (event.cookies) {
             let cookielist = '';
@@ -176,7 +182,6 @@ async function handler(data) {
           }
         }
 
-
         if (!headers['cache-control'] && response.status === 200 && (!data.hasOwnProperty('skipCacheControl') || (data.hasOwnProperty('skipCacheControl') && !data.skipCacheControl))) {
             let cacheControl = 'max-age=3600, s-maxage=86400';
 
@@ -208,7 +213,7 @@ async function handler(data) {
             returnResponse.multiValueHeaders = multiHeaders;
         }
 
-        return returnResponse;
+        return await plugins.executePostRequest(event, returnResponse);
     }
     catch (err) {
         console.log(err);
@@ -236,7 +241,6 @@ async function validate(data) {
     else if (!data.event) {
         throw new Error("The event property cannot be empty.");
     }
-
 
     if (!data.hasOwnProperty("docRoot")) {
         throw new Error("The docRoot or routerScript property is required.");
@@ -266,3 +270,5 @@ async function exists(path) {
 
 module.exports = handler;
 module.exports.validate = validate;
+module.exports.registerPlugin = plugins.register;
+module.exports.getPlugins = plugins.getPlugins;

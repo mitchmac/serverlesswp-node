@@ -5,7 +5,6 @@ test('Error with missing event property', () => {
   expect(async () => await serverlesswp.validate(args)).rejects.toThrow();
 });
 
-
 test('Error with empty event property', () => {
   const args = {event: '', docRoot: '/'}
   expect(async () => await serverlesswp.validate(args)).rejects.toThrow();
@@ -24,4 +23,12 @@ test('Error with invalid docRoot property', () => {
 test('Error with invalid routerScript property', () => {
   const args = {event: {}, docRoot: '/', routerScript: '/invalid'}
   expect(async () => await serverlesswp.validate(args)).rejects.toThrow();
+});
+
+test('Plugin registration', () => {
+  serverlesswp.registerPlugin({name: 'foo'});
+  serverlesswp.registerPlugin({name: 'bar'});
+
+  const plugins = serverlesswp.getPlugins();
+  expect(plugins).toHaveLength(2);
 });

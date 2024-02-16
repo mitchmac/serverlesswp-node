@@ -26,6 +26,7 @@
     "jest": "^29.5.0"
   },
   "scripts": {
-    "test": "jest --testPathIgnorePatterns 'e2e'"
+    "test": "jest --testPathIgnorePatterns 'e2e'",
+    "local-tests": "npm run test && cd tests/e2e && ./local.sh"
   }
 }
