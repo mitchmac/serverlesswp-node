@@ -15,10 +15,14 @@ jobs:
       - run: ./run-test.sh
         working-directory: ./tests/e2e
 
-      - run: curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php"}' | grep -q '{"statusCode":200,"headers"'
+      - run: >
+          curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php"}' | grep -q '{"statusCode":200,"headers"'
+      
+      - run: > 
+          curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "postRequestPlugin": "1"}' | grep -q '{"statusCode":201,"body":"Foo"}'
 
-      - run: curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "postRequestPlugin": "1"}' | grep -q '{"statusCode":201,"body":"Foo"}'
+      - run: >
+          curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "preRequestPlugin": "1"}' | grep -q '{"statusCode":200,"body":"Foo"}'
 
-      - run: curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "preRequestPlugin": "1"}' | grep -q '{"statusCode":200,"body":"Foo"}'
-
-      - run: curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/static.css"}' | grep -q 'background-color: blue'
+      - run: >
+          curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/static.css"}' | grep -q 'background-color: blue'
