@@ -21,6 +21,11 @@ async function handler(data) {
     await validate(data);
 
     const { event, docRoot } = data;
+
+    const preRequestResponse = await plugins.executePreRequest(event);
+    if (preRequestResponse !== null) {
+        return preRequestResponse;
+    }
     
     if (!php) {
         const env = {
@@ -208,7 +213,7 @@ async function handler(data) {
             returnResponse.multiValueHeaders = multiHeaders;
         }
 
-        return returnResponse;
+        return await plugins.executePostRequest(event, returnResponse);
     }
     catch (err) {
         console.log(err);

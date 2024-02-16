@@ -8,6 +8,16 @@ test('Plugin registration', () => {
     expect(pluginList).toHaveLength(2);
 });
 
+test('Plugins need a name', () => {
+    expect(() => { plugins.register({}) }).toThrow();
+    expect(() => { plugins.register({name: ''}) }).toThrow();
+});
+
+test('Plugins can only be registered once', () => {
+    plugins.register({name: 'baz'});
+    expect(() => { plugins.register({name: 'baz'}) }).toThrow();
+});
+
 test('Do not execute non-existent preRequest', async () => {
     plugins.register({name: 'Test'});
 

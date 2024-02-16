@@ -1,7 +1,16 @@
 let plugins = [];
 
 function register(plugin) {
-    //@TODO: validate the plugin
+    // Require a plugin name.
+    if (!plugin.hasOwnProperty("name") || !plugin.name) {
+        throw new Error("Plugins are required to have a name");
+    }
+
+    // Don't allow double registration.
+    if (plugins.find((plug) => plug.name === plugin.name)) {
+        throw new Error("Plugins can only be registered once");
+    }
+
     plugins.push(plugin);
 }
 
@@ -19,6 +28,7 @@ async function executePreRequest(event) {
         }
     }
 
+    //@TODO: validate response
     return response;
 }
 
@@ -26,11 +36,17 @@ async function executePostRequest(event, response) {
     //@TODO: only loop through plugins with postRequest.
     for (let i = 0; i < plugins.length; i++) {
         let plugin = plugins[i];
+        let pluginResponse;
+
         if (plugin.postRequest) {
-            response = await plugin.postRequest(event, response);
+            pluginResponse = await plugin.postRequest(event, response);
+            if (pluginResponse) {
+                response = pluginResponse;
+            }
         }
     }
 
+    //@TODO: validate response
     return response;
 }
 
