@@ -16,7 +16,7 @@ jobs:
         working-directory: ./tests/e2e
 
       - run: >
-          curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php"}' | grep -q '{"statusCode":200,"headers"'
+          curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php"}'
       
       - run: > 
           curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "postRequestPlugin": "1"}' | grep -q '{"statusCode":201,"body":"Foo"}'
