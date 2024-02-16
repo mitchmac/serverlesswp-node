@@ -5,7 +5,7 @@ serverlesswp.registerPlugin({
     name: 'postRequest',
     postRequest: async function(event, pluginResponse) {
         // Bypass this plugin conditionally
-        if (event.postRequestPlugin) {
+        if (event.hasOwnProperty("postRequestPlugin")) {
             return {
                 statusCode: pluginResponse.statusCode + 1,
                 body: 'Foo'
@@ -18,7 +18,7 @@ serverlesswp.registerPlugin({
     name: 'preRequest',
     preRequest: async function(event) {
         // Bypass this plugin conditionally
-        if (event.preRequestPlugin) {
+        if (event.hasOwnProperty("preRequestPlugin")) {
             return {
                 statusCode: 200,
                 body: 'Foo'

@@ -23,7 +23,7 @@ async function handler(data) {
     const { event, docRoot } = data;
 
     const preRequestResponse = await plugins.executePreRequest(event);
-    if (preRequestResponse !== null) {
+    if (preRequestResponse != null) {
         return preRequestResponse;
     }
     
