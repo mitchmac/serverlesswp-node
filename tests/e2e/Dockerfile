@@ -1,7 +1,7 @@
-FROM public.ecr.aws/lambda/nodejs:18
+FROM public.ecr.aws/lambda/nodejs:22
 
-COPY temp/package.json ${LAMBDA_TASK_ROOT}/
-RUN npm install --omit=optional --omit=dev
+COPY temp/package.json temp/package-lock.json ${LAMBDA_TASK_ROOT}/
+RUN npm install --omit=optional --omit=dev --verbose
 
 COPY temp/src ${LAMBDA_TASK_ROOT}/src
 COPY temp/php-files ${LAMBDA_TASK_ROOT}/php-files

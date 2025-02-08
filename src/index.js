@@ -4,7 +4,6 @@ const fs = require('fs').promises;
 const { URL } = require('node:url');
 
 const waitOn = require('wait-on');
-const fetch = require('node-fetch');
 const isBinaryFile = require("isbinaryfile").isBinaryFile;
 
 let php;
@@ -19,7 +18,7 @@ async function handler(data) {
     await validate(data);
 
     const { event, docRoot } = data;
-    
+
     if (!php) {
         const env = {
             ...process.env,
@@ -140,21 +139,16 @@ async function handler(data) {
         const response = await fetch(url, fetchOpts);
 
         let headers = {};
-        for (const [key, value] of Object.entries(response.headers.raw())) {
-          if (key !== 'set-cookie') {
-            headers[key] = value[0];
-          }
-        }
+        let responseCookies = [];
 
-        let multiHeaders = {};
-        if (response.headers.raw()['set-cookie']) {
-            if (process.env['VERCEL']) {
-                headers['set-cookie'] = response.headers.raw()['set-cookie'];
+        response.headers.forEach((value, name) => {
+            if (name != 'set-cookie') {
+                headers[name] = value;
             }
             else {
-                multiHeaders['set-cookie'] = response.headers.raw()['set-cookie'];
+                responseCookies.push(value);
             }
-          }
+        });
         
         const responseBuffer = await response.arrayBuffer();
 
@@ -196,18 +190,20 @@ async function handler(data) {
           isBase64Encoded: base64Encoded
         };
 
+        
         // AWS
         if (!process.env['VERCEL'] && !process.env['SITE_NAME']) {
-            if (multiHeaders['set-cookie']) {
-                returnResponse.cookies = multiHeaders['set-cookie'];
-                delete multiHeaders['set-cookie'];
+            if (responseCookies.length) {
+                returnResponse.cookies = responseCookies;
             }
         }
 
-        if (multiHeaders['set-cookie']) {
-            returnResponse.multiValueHeaders = multiHeaders;
-        }
-
+        if (responseCookies.length) {
+            // @TODO: does this need to be imploded?
+            returnResponse.multiValueHeaders = {};
+            returnResponse.multiValueHeaders['set-cookie'] = responseCookies;
+        }        
+        
         return returnResponse;
     }
     catch (err) {
