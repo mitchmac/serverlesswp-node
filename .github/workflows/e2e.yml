@@ -15,4 +15,15 @@ jobs:
       - run: ./run-test.sh
         working-directory: ./tests/e2e
 
-      - run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}'
+      - name: Check body is returned
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'has("body")'
+
+      - run: docker stop serverlesswp-test
+
+      - run: ./run-test.sh
+        working-directory: ./tests/e2e
+        env:
+          HOST: "Vercel"
+
+      - name: Check if Vercel cookies are correct
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'if (.headers["set-cookie"] | length == 2) then true else false end'
