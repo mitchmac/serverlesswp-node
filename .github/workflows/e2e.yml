@@ -35,5 +35,15 @@ jobs:
         env:
           HOST: "Netlify"
 
-      - name: Check if Vercel cookies are correct
+      - name: Check if Netlify cookies are correct
         run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'if (.multiValueHeaders["set-cookie"] | length == 2) then true else false end'
+
+      - run:  docker stop serverlesswp-test; docker rm serverlesswp-test
+
+      - run: ./run-test.sh
+        working-directory: ./tests/e2e
+        env:
+          HOST: "AWS"
+
+      - name: Check if AWS cookies are correct
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'if (.cookies | length == 2) then true else false end'
