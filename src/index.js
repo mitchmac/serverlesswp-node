@@ -190,19 +190,25 @@ async function handler(data) {
           isBase64Encoded: base64Encoded
         };
 
-        
-        // AWS
-        if (!process.env['VERCEL'] && !process.env['SITE_NAME']) {
-            if (responseCookies.length) {
+
+        if (responseCookies.length) {
+            // Vercel
+            if (process.env['VERCEL']) {
+                returnResponse.headers['set-cookie'] = responseCookies;
+            }
+
+            // Netlify
+            if (process.env['SITE_NAME']) {
+                // @TODO: does this need to be imploded?
+                returnResponse.multiValueHeaders = {};
+                returnResponse.multiValueHeaders['set-cookie'] = responseCookies;
+            }
+
+             // AWS
+            if (!process.env['VERCEL'] && !process.env['SITE_NAME']) {
                 returnResponse.cookies = responseCookies;
             }
         }
-
-        if (responseCookies.length) {
-            // @TODO: does this need to be imploded?
-            returnResponse.multiValueHeaders = {};
-            returnResponse.multiValueHeaders['set-cookie'] = responseCookies;
-        }        
         
         return returnResponse;
     }
