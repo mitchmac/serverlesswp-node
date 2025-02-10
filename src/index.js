@@ -97,8 +97,7 @@ async function handler(data) {
             urlPath = event.rawPath;
         }
 
-
-        let requestHeaders;
+        let requestHeaders = {};
         if (event.cookies) {
             let cookielist = '';
             for (var i = 0; i < event.cookies.length; i++) {
@@ -109,6 +108,11 @@ async function handler(data) {
         }
         else {
             requestHeaders = event.headers;
+        }
+
+        // fetch drops host. We have to grab it on the other side.
+        if (requestHeaders?.host) {
+            requestHeaders.injectHost = requestHeaders.host;
         }
 
         let requestMethod = 'GET';
@@ -170,7 +174,6 @@ async function handler(data) {
           }
         }
 
-
         if (!headers['cache-control'] && response.status === 200 && (!data.hasOwnProperty('skipCacheControl') || (data.hasOwnProperty('skipCacheControl') && !data.skipCacheControl))) {
             let cacheControl = 'max-age=3600, s-maxage=86400';
 
@@ -189,7 +192,6 @@ async function handler(data) {
           body: responseBody,
           isBase64Encoded: base64Encoded
         };
-
 
         if (responseCookies.length) {
             // Vercel
