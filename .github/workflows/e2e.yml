@@ -18,6 +18,9 @@ jobs:
       - name: Check body is returned
         run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'has("body")'
 
+      - name: Check binary file is handled correctly
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/rss.png"}' | jq -e '.headers["x-serverlesswp-binary"] == "true"'
+
       - run: docker stop serverlesswp-test; docker rm serverlesswp-test
 
       - run: ./run-test.sh

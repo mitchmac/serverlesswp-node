@@ -8,6 +8,7 @@ COPY temp/src ${LAMBDA_TASK_ROOT}/src
 COPY temp/php-files ${LAMBDA_TASK_ROOT}/php-files
 COPY temp/index.php ${LAMBDA_TASK_ROOT}/wp/
 COPY temp/static.css ${LAMBDA_TASK_ROOT}/wp/
+COPY temp/rss.png ${LAMBDA_TASK_ROOT}/wp/
 COPY router.php ${LAMBDA_TASK_ROOT}/
 COPY test.js ${LAMBDA_TASK_ROOT}/
 

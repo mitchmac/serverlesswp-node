@@ -159,13 +159,16 @@ async function handler(data) {
         let base64Encoded = false;
         let responseBody;
 
-        const isBin = await isBinaryFile(responseBuffer);
+        const isBin = await isBinaryFile(Buffer.from(responseBuffer));
+
         if (isBin) {
           responseBody = Buffer.from(responseBuffer).toString('base64');
           base64Encoded = true;
+          headers['x-serverlesswp-binary'] = 'true';
         }
         else {
           responseBody = Buffer.from(responseBuffer).toString('utf8');
+          headers['x-serverlesswp-binary'] = 'false';
         }
 
         if (headers['location']) {
