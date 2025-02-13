@@ -4,7 +4,6 @@ const fs = require('fs').promises;
 const { URL } = require('node:url');
 
 const waitOn = require('wait-on');
-const fetch = require('node-fetch');
 const isBinaryFile = require("isbinaryfile").isBinaryFile;
 
 let php;
@@ -19,7 +18,7 @@ async function handler(data) {
     await validate(data);
 
     const { event, docRoot } = data;
-    
+
     if (!php) {
         const env = {
             ...process.env,
@@ -98,8 +97,7 @@ async function handler(data) {
             urlPath = event.rawPath;
         }
 
-
-        let requestHeaders;
+        let requestHeaders = {};
         if (event.cookies) {
             let cookielist = '';
             for (var i = 0; i < event.cookies.length; i++) {
@@ -110,6 +108,11 @@ async function handler(data) {
         }
         else {
             requestHeaders = event.headers;
+        }
+
+        // fetch drops host. We have to grab it on the other side.
+        if (requestHeaders?.host) {
+            requestHeaders.injectHost = requestHeaders.host;
         }
 
         let requestMethod = 'GET';
@@ -140,34 +143,32 @@ async function handler(data) {
         const response = await fetch(url, fetchOpts);
 
         let headers = {};
-        for (const [key, value] of Object.entries(response.headers.raw())) {
-          if (key !== 'set-cookie') {
-            headers[key] = value[0];
-          }
-        }
+        let responseCookies = [];
 
-        let multiHeaders = {};
-        if (response.headers.raw()['set-cookie']) {
-            if (process.env['VERCEL']) {
-                headers['set-cookie'] = response.headers.raw()['set-cookie'];
+        response.headers.forEach((value, name) => {
+            if (name != 'set-cookie') {
+                headers[name] = value;
             }
             else {
-                multiHeaders['set-cookie'] = response.headers.raw()['set-cookie'];
+                responseCookies.push(value);
             }
-          }
+        });
         
         const responseBuffer = await response.arrayBuffer();
 
         let base64Encoded = false;
         let responseBody;
 
-        const isBin = await isBinaryFile(responseBuffer);
-        if (isBin) {
+        const isBin = await isBinaryFile(Buffer.from(responseBuffer));
+
+        if (isBin || headers['content-type'] === 'font/woff2') {
           responseBody = Buffer.from(responseBuffer).toString('base64');
           base64Encoded = true;
+          headers['x-serverlesswp-binary'] = 'true';
         }
         else {
           responseBody = Buffer.from(responseBuffer).toString('utf8');
+          headers['x-serverlesswp-binary'] = 'false';
         }
 
         if (headers['location']) {
@@ -175,7 +176,6 @@ async function handler(data) {
             headers['location'] = headers['location'].replace('http://127.0.0.1:8000', '');
           }
         }
-
 
         if (!headers['cache-control'] && response.status === 200 && (!data.hasOwnProperty('skipCacheControl') || (data.hasOwnProperty('skipCacheControl') && !data.skipCacheControl))) {
             let cacheControl = 'max-age=3600, s-maxage=86400';
@@ -193,21 +193,29 @@ async function handler(data) {
           statusCode: response.status || 200,
           headers: headers,
           body: responseBody,
-          isBase64Encoded: base64Encoded
+          isBase64Encoded: base64Encoded,
+          encoding: base64Encoded ? 'base64' : 'utf8' 
         };
 
-        // AWS
-        if (!process.env['VERCEL'] && !process.env['SITE_NAME']) {
-            if (multiHeaders['set-cookie']) {
-                returnResponse.cookies = multiHeaders['set-cookie'];
-                delete multiHeaders['set-cookie'];
+        if (responseCookies.length) {
+            // Vercel
+            if (process.env['VERCEL']) {
+                returnResponse.headers['set-cookie'] = responseCookies;
+            }
+
+            // Netlify
+            if (process.env['SITE_NAME']) {
+                // @TODO: does this need to be imploded?
+                returnResponse.multiValueHeaders = {};
+                returnResponse.multiValueHeaders['set-cookie'] = responseCookies;
+            }
+
+             // AWS
+            if (!process.env['VERCEL'] && !process.env['SITE_NAME']) {
+                returnResponse.cookies = responseCookies;
             }
         }
-
-        if (multiHeaders['set-cookie']) {
-            returnResponse.multiValueHeaders = multiHeaders;
-        }
-
+        
         return returnResponse;
     }
     catch (err) {

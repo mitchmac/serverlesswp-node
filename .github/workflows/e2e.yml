@@ -15,4 +15,38 @@ jobs:
       - run: ./run-test.sh
         working-directory: ./tests/e2e
 
-      - run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}'
+      - name: Check body is returned
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'has("body")'
+
+      - name: Check binary file is handled correctly
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/rss.png"}' | jq -e '.headers["x-serverlesswp-binary"] == "true"'
+
+      - run: docker stop serverlesswp-test; docker rm serverlesswp-test
+
+      - run: ./run-test.sh
+        working-directory: ./tests/e2e
+        env:
+          HOST: "Vercel"
+
+      - name: Check if Vercel cookies are correct
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'if (.headers["set-cookie"] | length == 2) then true else false end'
+
+      - run:  docker stop serverlesswp-test; docker rm serverlesswp-test
+
+      - run: ./run-test.sh
+        working-directory: ./tests/e2e
+        env:
+          HOST: "Netlify"
+
+      - name: Check if Netlify cookies are correct
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'if (.multiValueHeaders["set-cookie"] | length == 2) then true else false end'
+
+      - run:  docker stop serverlesswp-test; docker rm serverlesswp-test
+
+      - run: ./run-test.sh
+        working-directory: ./tests/e2e
+        env:
+          HOST: "AWS"
+
+      - name: Check if AWS cookies are correct
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'if (.cookies | length == 2) then true else false end'
