@@ -161,7 +161,7 @@ async function handler(data) {
 
         const isBin = await isBinaryFile(Buffer.from(responseBuffer));
 
-        if (isBin) {
+        if (isBin || headers['content-type'] === 'font/woff2') {
           responseBody = Buffer.from(responseBuffer).toString('base64');
           base64Encoded = true;
           headers['x-serverlesswp-binary'] = 'true';
@@ -193,7 +193,8 @@ async function handler(data) {
           statusCode: response.status || 200,
           headers: headers,
           body: responseBody,
-          isBase64Encoded: base64Encoded
+          isBase64Encoded: base64Encoded,
+          encoding: base64Encoded ? 'base64' : 'utf8' 
         };
 
         if (responseCookies.length) {
