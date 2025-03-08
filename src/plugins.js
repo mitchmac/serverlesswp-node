@@ -1,4 +1,5 @@
 let plugins = [];
+let hookTracker = {};
 
 function register(plugin) {
     // Require a plugin name.
@@ -12,6 +13,9 @@ function register(plugin) {
     }
 
     plugins.push(plugin);
+
+    // Register hooks, each method is callable?
+    // hookTracker...
 }
 
 function getPlugins() {
