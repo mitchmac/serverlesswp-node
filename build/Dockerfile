@@ -1,4 +1,5 @@
-FROM amazonlinux:2
+FROM amazonlinux:2023
+ARG PHP_VERSION=8.1.31
 
 RUN yum -y groups install "Development tools" \
   && yum -y install \
@@ -8,11 +9,15 @@ RUN yum -y groups install "Development tools" \
     openssl-devel \
     bzip2-devel \
     gd-devel \
-    mysql-devel \
     libjpeg-devel \
     libexif \
     libexif-devel \
     oniguruma-devel
+
+RUN curl -L https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm --create-dirs -o /work/mysql80-community-release-el9-1.noarch.rpm
+RUN dnf install /work/mysql80-community-release-el9-1.noarch.rpm -y
+RUN rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
+RUN dnf -y install mysql-devel
 
 WORKDIR /sqlite
 RUN curl https://www.sqlite.org/2023/sqlite-autoconf-3420000.tar.gz | tar xzf -
@@ -23,15 +28,12 @@ RUN make install
 
 WORKDIR /work
 
-RUN curl -L http://ca3.php.net/get/php-8.1.23.tar.bz2/from/this/mirror --create-dirs -o /work/php.tar.bz2
+RUN curl -L http://ca3.php.net/get/php-${PHP_VERSION}.tar.bz2/from/this/mirror --create-dirs -o /work/php.tar.bz2
 
 RUN tar -jxvf php.tar.bz2 \
   && mkdir php-81-bin
 
-WORKDIR /work/php-8.1.23
-
-#ENV SQLITE_LIBS="-L/sqlite/sqlite-autoconf-3420000/.libs -lsqlite3"
-#ENV SQLITE_CFLAGS="-I/sqlite/sqlite-autoconf-3420000"
+WORKDIR /work/php-${PHP_VERSION}
 
 RUN ./configure \
   --prefix=/work/php-81-bin/ \
