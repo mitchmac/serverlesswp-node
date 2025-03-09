@@ -22,10 +22,10 @@ jobs:
         run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/rss.png"}' | jq -e '.headers["x-serverlesswp-binary"] == "true"'
 
       - name: Check preRequest plugin
-        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "preRequestPlugin": "1" }' | jq -e '.body == "Foo"'
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "preRequestPlugin": "1"}' | jq -e '.body == "Foo"'
 
       - name: Check postRequest plugin
-        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "postRequestPlugin": "1" }' | jq -e '.statusCode == 201'
+        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "postRequestPlugin": "1"}' | jq -e '.statusCode == 201'
 
       - run: docker stop serverlesswp-test; docker rm serverlesswp-test
 
