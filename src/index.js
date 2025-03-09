@@ -14,11 +14,18 @@ const phpPath = path.resolve(__dirname, '../php-files/php');
 const phpIniPath = path.resolve(__dirname, '../php-files/php.ini');
 const cwd = path.resolve(__dirname, '../php-files');
 
+const plugins = require('./plugins');
+
 async function handler(data) {
     await validate(data);
 
     const { event, docRoot } = data;
 
+    const preRequestResponse = await plugins.executePreRequest(event);
+    if (preRequestResponse != null) {
+        return preRequestResponse;
+    }
+    
     if (!php) {
         const env = {
             ...process.env,
@@ -216,7 +223,7 @@ async function handler(data) {
             }
         }
         
-        return returnResponse;
+        return await plugins.executePostRequest(event, returnResponse);
     }
     catch (err) {
         console.log(err);
@@ -244,7 +251,6 @@ async function validate(data) {
     else if (!data.event) {
         throw new Error("The event property cannot be empty.");
     }
-
 
     if (!data.hasOwnProperty("docRoot")) {
         throw new Error("The docRoot or routerScript property is required.");
@@ -274,3 +280,5 @@ async function exists(path) {
 
 module.exports = handler;
 module.exports.validate = validate;
+module.exports.registerPlugin = plugins.register;
+module.exports.getPlugins = plugins.getPlugins;
