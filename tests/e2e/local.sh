@@ -2,11 +2,23 @@
 
 ./build-test.sh
 
-docker run -p 9000:8080 -d --name serverlesswp-local docker-lambda-serverlesswp
+HOST=${HOST:-Vercel}
 
-curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php"}' | jq
+docker run -e HOST=$HOST -p 9000:8080 -d --name serverlesswp-test docker-lambda-serverlesswp
 
-curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/static.css"}' | jq
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/rss.png"}' | jq -e '.headers["x-serverlesswp-binary"] == "true"'
 
-docker stop serverlesswp-local
-docker rm serverlesswp-local
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php"}' | jq -e 'has("body")'
+
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/static.css"}' | jq -e 'has("body")'
+
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php"}' | jq -e 'if (.headers["set-cookie"] | length == 2) then true else false end'
+
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php"}' | jq '.headers["set-cookie"]'
+
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "preRequestPlugin": "1" }' | jq -e '.body == "Foo"'
+
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "postRequestPlugin": "1" }' | jq -e '.statusCode == 201'
+
+docker stop serverlesswp-test
+docker rm serverlesswp-test
