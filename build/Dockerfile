@@ -1,5 +1,5 @@
 FROM amazonlinux:2023
-ARG PHP_VERSION=8.1.31
+ARG PHP_VERSION=8.1.32
 
 RUN yum -y groups install "Development tools" \
   && yum -y install \
