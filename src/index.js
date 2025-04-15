@@ -122,6 +122,11 @@ async function handler(data) {
             requestHeaders.injectHost = requestHeaders.host;
         }
 
+        // Similar workaround here, follow: https://github.com/nodejs/undici/issues/4144
+        if (requestHeaders && requestHeaders['transfer-encoding']) {
+            delete requestHeaders['transfer-encoding'];
+        }
+
         let requestMethod = 'GET';
 
         // Vercel & Netlify.
