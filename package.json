@@ -1,6 +1,6 @@
 {
   "name": "serverlesswp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Run PHP on Lambda (AWS, Netlify, Vercel)",
   "keywords": [
     "serverless",
