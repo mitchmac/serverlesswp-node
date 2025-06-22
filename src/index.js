@@ -20,11 +20,6 @@ async function handler(data) {
     await validate(data);
 
     const { event, docRoot } = data;
-
-    const preRequestResponse = await plugins.executePreRequest(event);
-    if (preRequestResponse != null) {
-        return preRequestResponse;
-    }
     
     if (!php) {
         const env = {
@@ -152,83 +147,100 @@ async function handler(data) {
             fetchOpts.body = body;
         }
 
-        const response = await fetch(url, fetchOpts);
+        let requestCount = 0;
+        let needsRetry = false;
+        while (requestCount === 0 || needsRetry) {
+            let preRequestResponse = await plugins.executePreRequest(event);
+            if (preRequestResponse != null) {
+                return preRequestResponse;
+            }
 
-        let headers = {};
-        let responseCookies = [];
+            let response = await fetch(url, fetchOpts);
 
-        response.headers.forEach((value, name) => {
-            if (name != 'set-cookie') {
-                headers[name] = value;
+            let headers = {};
+            let responseCookies = [];
+
+            response.headers.forEach((value, name) => {
+                if (name != 'set-cookie') {
+                    headers[name] = value;
+                }
+                else {
+                    responseCookies.push(value);
+                }
+            });
+
+            let responseBuffer = await response.arrayBuffer();
+
+            let base64Encoded = false;
+            let responseBody;
+
+            let isBin = await isBinaryFile(Buffer.from(responseBuffer));
+
+            if (isBin || headers['content-type'] === 'font/woff2') {
+                responseBody = Buffer.from(responseBuffer).toString('base64');
+                base64Encoded = true;
+                headers['x-serverlesswp-binary'] = 'true';
             }
             else {
-                responseCookies.push(value);
-            }
-        });
-        
-        const responseBuffer = await response.arrayBuffer();
-
-        let base64Encoded = false;
-        let responseBody;
-
-        const isBin = await isBinaryFile(Buffer.from(responseBuffer));
-
-        if (isBin || headers['content-type'] === 'font/woff2') {
-          responseBody = Buffer.from(responseBuffer).toString('base64');
-          base64Encoded = true;
-          headers['x-serverlesswp-binary'] = 'true';
-        }
-        else {
-          responseBody = Buffer.from(responseBuffer).toString('utf8');
-          headers['x-serverlesswp-binary'] = 'false';
-        }
-
-        if (headers['location']) {
-          if (headers['location'].indexOf('http://127.0.0.1:8000') !== -1) {
-            headers['location'] = headers['location'].replace('http://127.0.0.1:8000', '');
-          }
-        }
-
-        if (!headers['cache-control'] && response.status === 200 && (!data.hasOwnProperty('skipCacheControl') || (data.hasOwnProperty('skipCacheControl') && !data.skipCacheControl))) {
-            let cacheControl = 'max-age=3600, s-maxage=86400';
-
-            if (data.defaultCacheControl) {
-                cacheControl = data.defaultCacheControl;
-            }
-            
-            if (shouldCacheControl(url)) {
-                headers['cache-control'] = cacheControl;
-            }
-        }
-
-        let returnResponse = {
-          statusCode: response.status || 200,
-          headers: headers,
-          body: responseBody,
-          isBase64Encoded: base64Encoded,
-          encoding: base64Encoded ? 'base64' : 'utf8' 
-        };
-
-        if (responseCookies.length) {
-            // Vercel
-            if (process.env['VERCEL']) {
-                returnResponse.headers['set-cookie'] = responseCookies;
+                responseBody = Buffer.from(responseBuffer).toString('utf8');
+                headers['x-serverlesswp-binary'] = 'false';
             }
 
-            // Netlify
-            if (process.env['SITE_NAME']) {
-                // @TODO: does this need to be imploded?
-                returnResponse.multiValueHeaders = {};
-                returnResponse.multiValueHeaders['set-cookie'] = responseCookies;
+            if (headers['location']) {
+                if (headers['location'].indexOf('http://127.0.0.1:8000') !== -1) {
+                    headers['location'] = headers['location'].replace('http://127.0.0.1:8000', '');
+                }
             }
 
-             // AWS
-            if (!process.env['VERCEL'] && !process.env['SITE_NAME']) {
-                returnResponse.cookies = responseCookies;
+            if (!headers['cache-control'] && response.status === 200 && (!data.hasOwnProperty('skipCacheControl') || (data.hasOwnProperty('skipCacheControl') && !data.skipCacheControl))) {
+                let cacheControl = 'max-age=3600, s-maxage=86400';
+
+                if (data.defaultCacheControl) {
+                    cacheControl = data.defaultCacheControl;
+                }
+
+                if (shouldCacheControl(url)) {
+                    headers['cache-control'] = cacheControl;
+                }
+            }
+
+            let returnResponse = {
+                statusCode: response.status || 200,
+                headers: headers,
+                body: responseBody,
+                isBase64Encoded: base64Encoded,
+                encoding: base64Encoded ? 'base64' : 'utf8'
+            };
+
+            if (responseCookies.length) {
+                // Vercel
+                if (process.env['VERCEL']) {
+                    returnResponse.headers['set-cookie'] = responseCookies;
+                }
+
+                // Netlify
+                if (process.env['SITE_NAME']) {
+                    // @TODO: does this need to be imploded?
+                    returnResponse.multiValueHeaders = {};
+                    returnResponse.multiValueHeaders['set-cookie'] = responseCookies;
+                }
+
+                // AWS
+                if (!process.env['VERCEL'] && !process.env['SITE_NAME']) {
+                    returnResponse.cookies = responseCookies;
+                }
+            }
+
+            let pluginResponse = await plugins.executePostRequest(event, returnResponse);
+            // @TODO: configurable retry count
+            requestCount++;
+            if (pluginResponse.retry && requestCount < 2) {
+                needsRetry = true;
+            }
+            else {
+                return pluginResponse;
             }
         }
-        
-        return await plugins.executePostRequest(event, returnResponse);
     }
     catch (err) {
         console.log(err);

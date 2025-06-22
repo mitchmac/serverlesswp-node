@@ -27,6 +27,23 @@ serverlesswp.registerPlugin({
     }
 });
 
+let retryCount = 0;
+
+serverlesswp.registerPlugin({
+    name: 'retry',
+    postRequest: async function(event, pluginResponse) {
+        // Bypass this plugin conditionally
+        if (event.hasOwnProperty("retry")) {
+            retryCount++;
+            return {
+                statusCode: pluginResponse.statusCode + 1,
+                body: retryCount,
+                retry: true
+            }
+        }
+    }
+});
+
 exports.handler = async function (event, context, callback) {
     const docRoot = path.join(process.cwd(), 'wp');
     const routerScript = path.join(process.cwd(), 'router.php');

@@ -131,4 +131,23 @@ describe('Plugins tests', () => {
         expect(response.body).toEqual('Bar');
         expect(response.statusCode).toEqual(202);
     });
+
+    test('postRequest retry', async () => {
+        const plugins = require('../src/plugins');
+
+        plugins.register({
+            name: 'postRequest retry',
+            postRequest: async function(event, response) {
+                return {
+                    statusCode: 200,
+                    body: 'Foo',
+                    retry: true
+                }
+            }
+        });
+
+        const response = await plugins.executePostRequest({test: 'foo'}, {statusCode: 200, body: 'Test'});
+        // Basically just checking the property comes through.
+        expect(response.retry).toEqual(true);
+    });
 });
