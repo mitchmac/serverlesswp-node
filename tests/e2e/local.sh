@@ -20,6 +20,8 @@ curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d
 
 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "postRequestPlugin": "1" }' | jq -e '.statusCode == 201'
 
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "retry": "1" }' | jq -e '.body == 2'
+
 docker stop serverlesswp-test
 docker logs serverlesswp-test
 docker rm serverlesswp-test
