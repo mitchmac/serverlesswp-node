@@ -180,12 +180,12 @@ async function handler(data) {
             let isBin = await isBinaryFile(responseBuf);
 
             if (isBin || headers['content-type'] === 'font/woff2') {
-                responseBody =  responseBuf.toString('base64');
+                responseBody = responseBuf.toString('base64');
                 base64Encoded = true;
                 headers['x-serverlesswp-binary'] = 'true';
             }
             else {
-                responseBody =  responseBuf.toString('utf8');
+                responseBody = responseBuf.toString('utf8');
                 headers['x-serverlesswp-binary'] = 'false';
             }
 
