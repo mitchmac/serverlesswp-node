@@ -2,6 +2,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs').promises;
 const { URL } = require('node:url');
+const http = require('http');
 
 const waitOn = require('wait-on');
 const isBinaryFile = require("isbinaryfile").isBinaryFile;
@@ -135,12 +136,14 @@ async function handler(data) {
         }
 
         const url = `http://127.0.0.1:8000${urlPath}${queryString}`;
+        const keepAliveAgent = new http.Agent({ keepAlive: true });
         
         let fetchOpts = {
           method: requestMethod,
           headers: requestHeaders,
           redirect: 'manual',
-          compress: false
+          compress: false,
+          agent: keepAliveAgent
         };
 
         if (body) {
@@ -169,20 +172,20 @@ async function handler(data) {
                 }
             });
 
-            let responseBuffer = await response.arrayBuffer();
+            const responseBuf = Buffer.from(await response.arrayBuffer());
 
             let base64Encoded = false;
             let responseBody;
 
-            let isBin = await isBinaryFile(Buffer.from(responseBuffer));
+            let isBin = await isBinaryFile(responseBuf);
 
             if (isBin || headers['content-type'] === 'font/woff2') {
-                responseBody = Buffer.from(responseBuffer).toString('base64');
+                responseBody = responseBuf.toString('base64');
                 base64Encoded = true;
                 headers['x-serverlesswp-binary'] = 'true';
             }
             else {
-                responseBody = Buffer.from(responseBuffer).toString('utf8');
+                responseBody = responseBuf.toString('utf8');
                 headers['x-serverlesswp-binary'] = 'false';
             }
 
