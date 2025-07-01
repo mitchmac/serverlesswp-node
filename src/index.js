@@ -173,11 +173,23 @@ async function handler(data) {
             });
 
             const responseBuf = Buffer.from(await response.arrayBuffer());
+            const contentType = headers['content-type'] || '';
 
             let base64Encoded = false;
             let responseBody;
+            let isBin = false;
 
-            let isBin = await isBinaryFile(responseBuf);
+            // @TODO: add other known types
+            const skipBinaryCheckTypes = [
+                'text/html',
+                'text/plain',
+                'text/css'
+            ];
+
+            const shouldSkipCheck = skipBinaryCheckTypes.some(type => contentType.includes(type));
+            if (!shouldSkipCheck) {
+                isBin = await isBinaryFile(responseBuf);
+            }
 
             if (isBin || headers['content-type'] === 'font/woff2') {
                 responseBody = responseBuf.toString('base64');
