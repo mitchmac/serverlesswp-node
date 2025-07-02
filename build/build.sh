@@ -20,3 +20,6 @@ docker -D cp -L $container:/usr/lib64/libgraphite2.so.3 ../php-files/lib/libgrap
 docker -D cp -L $container:/usr/lib64/libbrotlicommon.so.1 ../php-files/lib/libbrotlicommon.so.1
 
 docker rm $container
+
+strip ../php-files/php
+strip ../php-files/php-files/lib/*.so.*
