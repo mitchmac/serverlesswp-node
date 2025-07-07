@@ -22,4 +22,5 @@ docker -D cp -L $container:/usr/lib64/libbrotlicommon.so.1 ../php-files/lib/libb
 docker rm $container
 
 strip ../php-files/php
-strip ../php-files/php-files/lib/*.so.*
+strip ../php-files/lib/*.so.*
+strip ../php-files/ext/*.so

@@ -1,5 +1,5 @@
 FROM amazonlinux:2023
-ARG PHP_VERSION=8.1.32
+ARG PHP_VERSION=8.1.33
 
 RUN yum -y groups install "Development tools" \
   && yum -y install \
@@ -60,6 +60,7 @@ RUN ./configure \
   --with-bz2 \
   --with-zlib \
   --with-gettext \
-  --enable-opcache 
+  --enable-opcache \
+  --disable-cgi
 
 RUN make install -j4
