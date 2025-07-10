@@ -6,7 +6,7 @@ docker build -t lambda-php81 .
 container=$(docker create lambda-php81)
 
 docker -D cp $container:/work/php-81-bin/bin/php ../php-files/php
-docker -D cp $container:/work/php-81-bin/lib/php/extensions/no-debug-non-zts-20210902/opcache.so ../php-files/exts/
+docker -D cp $container:/work/php-81-bin/lib/php/extensions/no-debug-non-zts-20230831/opcache.so ../php-files/exts/
 
 docker -D cp -L $container:/usr/lib64/libsqlite3.so.0.8.6 ../php-files/lib/libsqlite3.so.0
 docker -D cp -L $container:/usr/lib64/libcrypt.so.2 ../php-files/lib/libcrypt.so.2
@@ -19,8 +19,9 @@ docker -D cp -L $container:/usr/lib64/libbrotlidec.so.1 ../php-files/lib/libbrot
 docker -D cp -L $container:/usr/lib64/libgraphite2.so.3 ../php-files/lib/libgraphite2.so.3
 docker -D cp -L $container:/usr/lib64/libbrotlicommon.so.1 ../php-files/lib/libbrotlicommon.so.1
 
+#docker run lambda-php81 ls /work/php-81-bin/lib/php/extensions/
 docker rm $container
 
 strip ../php-files/php
 strip ../php-files/lib/*.so.*
-strip ../php-files/ext/*.so
+strip ../php-files/exts/*.so
