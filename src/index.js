@@ -16,6 +16,7 @@ const phpIniPath = path.resolve(__dirname, '../php-files/php.ini');
 const cwd = path.resolve(__dirname, '../php-files');
 
 const plugins = require('./plugins');
+const keepAliveAgent = new http.Agent({ keepAlive: true });
 
 async function handler(data) {
     await validate(data);
@@ -136,7 +137,6 @@ async function handler(data) {
         }
 
         const url = `http://127.0.0.1:8000${urlPath}${queryString}`;
-        const keepAliveAgent = new http.Agent({ keepAlive: true });
         
         let fetchOpts = {
           method: requestMethod,
