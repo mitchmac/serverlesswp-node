@@ -61,7 +61,7 @@ async function handler(data) {
                 resources: [
                     'tcp:127.0.0.1:8000'
                 ],
-                interval: 5, // poll interval in ms
+                interval: 1, // poll interval in ms
                 timeout: 9000, // timeout in ms
             };
             await waitOn(waitOnOpts);

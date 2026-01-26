@@ -1,6 +1,6 @@
 {
   "name": "serverlesswp",
-  "version": "0.4.2",
+  "version": "0.4.5",
   "description": "Run PHP on Lambda (AWS, Netlify, Vercel)",
   "keywords": [
     "serverless",
@@ -17,6 +17,10 @@
     "type": "git",
     "url": "https://github.com/mitchmac/serverlesswp-node.git"
   },
+  "files": [
+    "src/",
+    "php-files/"
+  ],
   "dependencies": {
     "isbinaryfile": "^5.0.0",
     "wait-on": "^7.0.1"
