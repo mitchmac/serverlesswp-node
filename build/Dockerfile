@@ -12,7 +12,8 @@ RUN yum -y groups install "Development tools" \
     libjpeg-devel \
     libexif \
     libexif-devel \
-    oniguruma-devel
+    oniguruma-devel \
+    libwebp-devel
 
 RUN curl -L https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm --create-dirs -o /work/mysql80-community-release-el9-1.noarch.rpm
 RUN dnf install /work/mysql80-community-release-el9-1.noarch.rpm -y
@@ -47,6 +48,8 @@ RUN ./configure \
   --enable-simplexml \
   --enable-xml \
   --enable-gd \
+  --with-jpeg \
+  --with-webp \
   --with-mhash \
   --enable-exif \
   --with-freetype \

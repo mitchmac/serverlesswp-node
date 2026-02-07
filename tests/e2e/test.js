@@ -47,7 +47,7 @@ serverlesswp.registerPlugin({
 exports.handler = async function (event, context, callback) {
     const docRoot = path.join(process.cwd(), 'wp');
     const routerScript = path.join(process.cwd(), 'router.php');
-  
+
     if (process.env['HOST']) {
         if (process.env['HOST'] === 'Vercel') {
             process.env['VERCEL'] = 1;
@@ -57,7 +57,27 @@ exports.handler = async function (event, context, callback) {
             process.env['SITE_NAME'] = 1;
         }
     }
+
+    if (event.streaming) {
+        const response = await serverlesswp({event: event, docRoot: docRoot, routerScript: routerScript, streaming: true});
+        const body = await response.text();
+        const headers = {};
+        for (const [name, value] of response.headers) {
+            if (name !== 'set-cookie') {
+                headers[name] = value;
+            }
+        }
+        const cookies = response.headers.getSetCookie();
+        return {
+            statusCode: response.status,
+            headers: headers,
+            cookies: cookies,
+            body: body,
+            streaming: true
+        };
+    }
+
     const response = await serverlesswp({event: event, docRoot: docRoot, routerScript: routerScript});
-   
+
     return response;
 };

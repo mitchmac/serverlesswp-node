@@ -155,6 +155,9 @@ async function handler(data) {
         while (requestCount === 0 || needsRetry) {
             let preRequestResponse = await plugins.executePreRequest(event);
             if (preRequestResponse != null) {
+                if (data.streaming) {
+                    return objectToResponse(preRequestResponse);
+                }
                 return preRequestResponse;
             }
 
@@ -171,6 +174,60 @@ async function handler(data) {
                     responseCookies.push(value);
                 }
             });
+
+            if (data.streaming) {
+                // Streaming path: process headers, then return a Response with unconsumed body
+
+                // Location header fix (same logic as non-streaming)
+                if (headers['location']) {
+                    if (headers['location'].indexOf('http://127.0.0.1:8000') !== -1) {
+                        headers['location'] = headers['location'].replace('http://127.0.0.1:8000', '');
+                    }
+                }
+
+                // Cache control (same logic as non-streaming)
+                if (!headers['cache-control'] && response.status === 200 && (!data.hasOwnProperty('skipCacheControl') || (data.hasOwnProperty('skipCacheControl') && !data.skipCacheControl))) {
+                    let cacheControl = 'max-age=3600, s-maxage=86400';
+                    if (data.defaultCacheControl) {
+                        cacheControl = data.defaultCacheControl;
+                    }
+                    if (shouldCacheControl(url)) {
+                        headers['cache-control'] = cacheControl;
+                    }
+                }
+
+                // Build response metadata for plugins (no body — it hasn't been consumed)
+                let returnResponse = {
+                    statusCode: response.status || 200,
+                    headers: headers,
+                };
+
+                if (responseCookies.length) {
+                    returnResponse.cookies = responseCookies;
+                }
+
+                // PostRequest plugins still run — they can inspect/modify headers and trigger retry
+                let pluginResponse = await plugins.executePostRequest(event, returnResponse);
+                requestCount++;
+
+                if (pluginResponse.retry && requestCount < 2) {
+                    needsRetry = true;
+                    continue;
+                }
+
+                // Return a Web Response with the unconsumed body stream
+                const responseHeaders = new Headers(pluginResponse.headers);
+                if (pluginResponse.cookies) {
+                    for (const cookie of pluginResponse.cookies) {
+                        responseHeaders.append('set-cookie', cookie);
+                    }
+                }
+
+                return new Response(response.body, {
+                    status: pluginResponse.statusCode,
+                    headers: responseHeaders
+                });
+            }
 
             const responseBuf = Buffer.from(await response.arrayBuffer());
             const contentType = headers['content-type'] || '';
@@ -261,10 +318,14 @@ async function handler(data) {
         console.log(err);
     }
 
-    return {
+    const errorResponse = {
         statusCode: 500,
         body: 'There was a problem, check your function logs for clues.'
+    };
+    if (data.streaming) {
+        return objectToResponse(errorResponse);
     }
+    return errorResponse;
 }
 
 //@TODO: tests
@@ -308,6 +369,19 @@ async function exists(path) {
     } catch (error) {
       return false;
     }
+}
+
+function objectToResponse(responseObj) {
+    const headers = new Headers(responseObj.headers || {});
+    if (responseObj.cookies && Array.isArray(responseObj.cookies)) {
+        for (const cookie of responseObj.cookies) {
+            headers.append('set-cookie', cookie);
+        }
+    }
+    return new Response(responseObj.body || '', {
+        status: responseObj.statusCode || 200,
+        headers: headers
+    });
 }
 
 module.exports = handler;
