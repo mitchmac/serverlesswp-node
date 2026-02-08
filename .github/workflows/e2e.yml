@@ -1,37 +1,23 @@
 name: e2e Tests
 on: [push, pull_request]
 jobs:
-  jest:
+  e2e:
     name: e2e tests
     runs-on: ubuntu-latest
     steps:
 
       - name: Checkout
         uses: actions/checkout@v3
-      
+
       - run: ./build-test.sh
         working-directory: ./tests/e2e
 
       - run: ./run-test.sh
         working-directory: ./tests/e2e
 
-      - name: Check body is returned
-        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/hi"}' | jq -e 'has("body")'
-
-      - name: Check binary file is handled correctly
-        run: curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/rss.png"}' | jq -e '.headers["x-serverlesswp-binary"] == "true"'
-
-      - name: Check preRequest plugin
-        run: |
-            curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "preRequestPlugin": "1"}' | jq -e '.body == "Foo"'
-
-      - name: Check postRequest plugin
-        run: |
-            curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "postRequestPlugin": "1"}' | jq -e '.statusCode == 201'
-
-      - name: Check postRequest retry
-        run: |
-            curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{"path":"/index.php", "retry": "1"}' | jq -e '.body == 2'
+      - name: Run common and streaming tests
+        run: ./test-requests.sh
+        working-directory: ./tests/e2e
 
       - run: docker stop serverlesswp-test; docker rm serverlesswp-test
 

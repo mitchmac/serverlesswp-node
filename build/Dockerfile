@@ -12,7 +12,8 @@ RUN yum -y groups install "Development tools" \
     libjpeg-devel \
     libexif \
     libexif-devel \
-    oniguruma-devel
+    oniguruma-devel \
+    libwebp-devel
 
 RUN curl -L https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm --create-dirs -o /work/mysql80-community-release-el9-1.noarch.rpm
 RUN dnf install /work/mysql80-community-release-el9-1.noarch.rpm -y
@@ -28,7 +29,9 @@ RUN make install
 
 WORKDIR /work
 
-RUN curl -L http://ca3.php.net/get/php-${PHP_VERSION}.tar.bz2/from/this/mirror --create-dirs -o /work/php.tar.bz2
+ARG PHP_SHA256=800b7b6ed50b73c8ee7844ee5f2f7cc612faa7875a0aa7c4529e8ed5866a5030
+RUN curl -fSL https://www.php.net/distributions/php-${PHP_VERSION}.tar.bz2 -o /work/php.tar.bz2 \
+  && echo "${PHP_SHA256}  /work/php.tar.bz2" | sha256sum -c -
 
 RUN tar -jxvf php.tar.bz2 \
   && mkdir php-81-bin
@@ -47,6 +50,8 @@ RUN ./configure \
   --enable-simplexml \
   --enable-xml \
   --enable-gd \
+  --with-jpeg \
+  --with-webp \
   --with-mhash \
   --enable-exif \
   --with-freetype \

@@ -18,6 +18,8 @@ docker -D cp -L $container:/usr/lib64/libharfbuzz.so.0 ../php-files/lib/libharfb
 docker -D cp -L $container:/usr/lib64/libbrotlidec.so.1 ../php-files/lib/libbrotlidec.so.1
 docker -D cp -L $container:/usr/lib64/libgraphite2.so.3 ../php-files/lib/libgraphite2.so.3
 docker -D cp -L $container:/usr/lib64/libbrotlicommon.so.1 ../php-files/lib/libbrotlicommon.so.1
+docker -D cp -L $container:/usr/lib64/libjpeg.so.62 ../php-files/lib/libjpeg.so.62
+docker -D cp -L $container:/usr/lib64/libwebp.so.7 ../php-files/lib/libwebp.so.7
 
 docker rm $container
 
