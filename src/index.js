@@ -211,6 +211,7 @@ async function handler(data) {
                 requestCount++;
 
                 if (pluginResponse.retry && requestCount < 2) {
+                    await response.body?.cancel();
                     needsRetry = true;
                     continue;
                 }
