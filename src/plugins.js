@@ -40,9 +40,13 @@ async function executePreRequest(event) {
         for (const pluginName of hookTracker["preRequest"]) {
             let plugin = getPluginByName(pluginName);
             response = await plugin.preRequest(event, response);
+            if (response && response._forceResponse) {
+                delete response._forceResponse;
+                return response;
+            }
         }
     }
-    
+
     //@TODO: validate response
     return response;
 }

@@ -132,6 +132,46 @@ describe('Plugins tests', () => {
         expect(response.statusCode).toEqual(202);
     });
 
+    test('preRequest _forceResponse short-circuits remaining plugins', async () => {
+        const plugins = require('../src/plugins');
+
+        const secondCalled = jest.fn();
+
+        plugins.register({
+            name: 'force',
+            preRequest: async function(event, response) {
+                return { statusCode: 200, body: 'forced', _forceResponse: true };
+            },
+        });
+
+        plugins.register({
+            name: 'should-not-run',
+            preRequest: async function(event, response) {
+                secondCalled();
+                return { statusCode: 500, body: 'should not reach here' };
+            },
+        });
+
+        const response = await plugins.executePreRequest({});
+        expect(response.statusCode).toEqual(200);
+        expect(response.body).toEqual('forced');
+        expect(secondCalled).not.toHaveBeenCalled();
+    });
+
+    test('preRequest _forceResponse is stripped from the returned response', async () => {
+        const plugins = require('../src/plugins');
+
+        plugins.register({
+            name: 'force-strip',
+            preRequest: async function(event, response) {
+                return { statusCode: 200, body: 'ok', _forceResponse: true };
+            },
+        });
+
+        const response = await plugins.executePreRequest({});
+        expect(response).not.toHaveProperty('_forceResponse');
+    });
+
     test('postRequest retry', async () => {
         const plugins = require('../src/plugins');
 

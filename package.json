@@ -1,6 +1,6 @@
 {
   "name": "serverlesswp",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Run PHP on Lambda (AWS, Netlify, Vercel)",
   "keywords": [
     "serverless",
@@ -23,7 +23,7 @@
   ],
   "dependencies": {
     "isbinaryfile": "^5.0.0",
-    "wait-on": "^7.0.1"
+    "wait-on": "^9.0.5"
   },
   "devDependencies": {
     "jest": "^29.5.0"
