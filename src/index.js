@@ -101,6 +101,8 @@ async function handler(data) {
             urlPath = event.rawPath;
         }
 
+        normalizeEventHeaders(event);
+
         let requestMethod = 'GET';
 
         // Vercel & Netlify.
@@ -137,12 +139,10 @@ async function handler(data) {
                 return preRequestResponse;
             }
 
-            // Headers are built after preRequest plugins run, and again on
-            // each retry: plugins add and strip headers on event.headers,
-            // and PHP must see the result on every platform - including AWS
-            // HTTP API v2 events, where cookies arrive separately and force
-            // a merged copy.
-            fetchOpts.headers = buildRequestHeaders(event);
+            // Copied after preRequest plugins run, and again on each retry:
+            // plugins add and strip headers on event.headers, and PHP must
+            // see the result on every attempt.
+            fetchOpts.headers = { ...event.headers };
 
             let response = await fetch(url, fetchOpts);
 
@@ -312,31 +312,31 @@ async function handler(data) {
     return errorResponse;
 }
 
-// The headers PHP receives for a request. Always a copy: event.headers may
-// need merging with event.cookies (AWS HTTP API v2 delivers cookies
-// separately), and the platform's event object must not be mutated.
-function buildRequestHeaders(event) {
-    const requestHeaders = { ...event.headers };
+// Normalize event.headers in place before plugins run, so preRequest sees
+// the same header shape on every platform and what it sees is what PHP gets.
+function normalizeEventHeaders(event) {
+    if (!event.headers) {
+        event.headers = {};
+    }
 
+    // AWS HTTP API v2 delivers cookies in event.cookies, not as a header.
     if (event.cookies) {
         let cookielist = '';
         for (let i = 0; i < event.cookies.length; i++) {
             cookielist += event.cookies[i] + '; ';
         }
-        requestHeaders.Cookie = cookielist.slice(0, -2);
+        event.headers.Cookie = cookielist.slice(0, -2);
     }
 
     // fetch drops host. We have to grab it on the other side.
-    if (requestHeaders.host) {
-        requestHeaders.injectHost = requestHeaders.host;
+    if (event.headers.host) {
+        event.headers.injectHost = event.headers.host;
     }
 
     // Similar workaround here, follow: https://github.com/nodejs/undici/issues/4144
-    if (requestHeaders['transfer-encoding']) {
-        delete requestHeaders['transfer-encoding'];
+    if (event.headers['transfer-encoding']) {
+        delete event.headers['transfer-encoding'];
     }
-
-    return requestHeaders;
 }
 
 //@TODO: tests
@@ -399,4 +399,4 @@ module.exports = handler;
 module.exports.validate = validate;
 module.exports.registerPlugin = plugins.register;
 module.exports.getPlugins = plugins.getPlugins;
-module.exports.buildRequestHeaders = buildRequestHeaders;
+module.exports.normalizeEventHeaders = normalizeEventHeaders;

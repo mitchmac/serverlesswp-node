@@ -1,8 +1,9 @@
-// Request-header construction, and its ordering relative to plugins.
+// Request-header normalization, and its ordering relative to plugins.
 //
-// PHP must see the headers as they are after preRequest plugins run - on
-// every platform and on every retry. That includes AWS HTTP API v2 events,
-// where cookies arrive in event.cookies instead of event.headers.
+// event.headers is normalized in place before plugins run, so preRequest
+// sees the same header shape on every platform - including AWS HTTP API v2
+// events, where cookies arrive in event.cookies instead of a header. PHP
+// then receives the headers as they are after plugins run, on every attempt.
 
 jest.mock('child_process', () => ({
     spawn: jest.fn(() => ({
@@ -14,53 +15,48 @@ jest.mock('child_process', () => ({
 jest.mock('wait-on', () => jest.fn(() => Promise.resolve()));
 
 const serverlesswp = require('../src/index');
-const { buildRequestHeaders } = serverlesswp;
+const { normalizeEventHeaders } = serverlesswp;
 
-describe('buildRequestHeaders', () => {
+describe('normalizeEventHeaders', () => {
     test('merges event.cookies into a Cookie header', () => {
         const event = {
             headers: { host: 'example.com' },
             cookies: ['a=1', 'b=2'],
         };
-        const headers = buildRequestHeaders(event);
-        expect(headers.Cookie).toBe('a=1; b=2');
+        normalizeEventHeaders(event);
+        expect(event.headers.Cookie).toBe('a=1; b=2');
     });
 
     test('adds injectHost so PHP can recover the host fetch drops', () => {
-        const headers = buildRequestHeaders({ headers: { host: 'example.com' } });
-        expect(headers.injectHost).toBe('example.com');
+        const event = { headers: { host: 'example.com' } };
+        normalizeEventHeaders(event);
+        expect(event.headers.injectHost).toBe('example.com');
     });
 
     test('removes transfer-encoding', () => {
-        const headers = buildRequestHeaders({ headers: { 'transfer-encoding': 'chunked' } });
-        expect(headers['transfer-encoding']).toBeUndefined();
-    });
-
-    test('does not mutate the platform event object', () => {
-        const event = {
-            headers: { host: 'example.com', 'transfer-encoding': 'chunked' },
-            cookies: ['a=1'],
-        };
-        buildRequestHeaders(event);
-        expect(event.headers).toEqual({ host: 'example.com', 'transfer-encoding': 'chunked' });
-        expect(event.headers.injectHost).toBeUndefined();
-        expect(event.headers.Cookie).toBeUndefined();
+        const event = { headers: { 'transfer-encoding': 'chunked' } };
+        normalizeEventHeaders(event);
+        expect(event.headers['transfer-encoding']).toBeUndefined();
     });
 
     test('tolerates events without headers', () => {
-        expect(buildRequestHeaders({})).toEqual({});
+        const event = {};
+        normalizeEventHeaders(event);
+        expect(event.headers).toEqual({});
     });
 });
 
-describe('header changes from plugins reach PHP', () => {
-    test('headers are built after preRequest, on each attempt, with event.cookies present', async () => {
+describe('plugins and PHP see the same headers', () => {
+    test('preRequest sees normalized headers; PHP sees plugin changes on each attempt', async () => {
         let attempt = 0;
         let retried = false;
+        const headersSeenByPlugin = [];
 
         serverlesswp.registerPlugin({
             name: 'header-writer',
             preRequest: async (event) => {
                 attempt++;
+                headersSeenByPlugin.push({ ...event.headers });
                 // What the sqlite plugins do: replace any inbound value with
                 // a per-attempt one.
                 for (const k of Object.keys(event.headers)) {
@@ -81,9 +77,9 @@ describe('header changes from plugins reach PHP', () => {
         // Snapshot headers at call time - the handler reuses one fetchOpts
         // object across attempts, so inspecting it afterwards would only
         // show the last attempt's headers.
-        const seenHeaders = [];
+        const seenByFetch = [];
         global.fetch = jest.fn(async (url, opts) => {
-            seenHeaders.push({ ...opts.headers });
+            seenByFetch.push({ ...opts.headers });
             return new Response('<html>ok</html>', {
                 status: 200,
                 headers: { 'content-type': 'text/html' },
@@ -103,15 +99,19 @@ describe('header changes from plugins reach PHP', () => {
 
         await serverlesswp({ event, docRoot: __dirname });
 
+        // The plugin got the normalized view: merged Cookie and injectHost.
+        expect(headersSeenByPlugin[0].Cookie).toBe('wordpress_logged_in=abc');
+        expect(headersSeenByPlugin[0].injectHost).toBe('example.com');
+
         expect(global.fetch).toHaveBeenCalledTimes(2);
 
         // The plugin's value wins over the client-supplied one, and each
         // attempt carries that attempt's value.
-        expect(seenHeaders[0]['x-serverlesswp-sqlite-file']).toBe('working-1.sqlite');
-        expect(seenHeaders[1]['x-serverlesswp-sqlite-file']).toBe('working-2.sqlite');
+        expect(seenByFetch[0]['x-serverlesswp-sqlite-file']).toBe('working-1.sqlite');
+        expect(seenByFetch[1]['x-serverlesswp-sqlite-file']).toBe('working-2.sqlite');
 
-        // The cookie merge and host workaround still apply.
-        expect(seenHeaders[0].Cookie).toBe('wordpress_logged_in=abc');
-        expect(seenHeaders[0].injectHost).toBe('example.com');
+        // Normalization carries through to PHP.
+        expect(seenByFetch[0].Cookie).toBe('wordpress_logged_in=abc');
+        expect(seenByFetch[0].injectHost).toBe('example.com');
     });
 });
