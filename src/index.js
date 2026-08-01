@@ -101,29 +101,6 @@ async function handler(data) {
             urlPath = event.rawPath;
         }
 
-        let requestHeaders = {};
-        if (event.cookies) {
-            let cookielist = '';
-            for (var i = 0; i < event.cookies.length; i++) {
-                cookielist += event.cookies[i] + '; ';
-            }
-            cookielist = cookielist.slice(0, -2);
-            requestHeaders = { ...event.headers, Cookie: cookielist };
-        }
-        else {
-            requestHeaders = event.headers;
-        }
-
-        // fetch drops host. We have to grab it on the other side.
-        if (requestHeaders?.host) {
-            requestHeaders.injectHost = requestHeaders.host;
-        }
-
-        // Similar workaround here, follow: https://github.com/nodejs/undici/issues/4144
-        if (requestHeaders && requestHeaders['transfer-encoding']) {
-            delete requestHeaders['transfer-encoding'];
-        }
-
         let requestMethod = 'GET';
 
         // Vercel & Netlify.
@@ -140,7 +117,6 @@ async function handler(data) {
         
         let fetchOpts = {
           method: requestMethod,
-          headers: requestHeaders,
           redirect: 'manual',
           compress: false,
           agent: keepAliveAgent
@@ -160,6 +136,13 @@ async function handler(data) {
                 }
                 return preRequestResponse;
             }
+
+            // Headers are built after preRequest plugins run, and again on
+            // each retry: plugins add and strip headers on event.headers,
+            // and PHP must see the result on every platform - including AWS
+            // HTTP API v2 events, where cookies arrive separately and force
+            // a merged copy.
+            fetchOpts.headers = buildRequestHeaders(event);
 
             let response = await fetch(url, fetchOpts);
 
@@ -329,6 +312,33 @@ async function handler(data) {
     return errorResponse;
 }
 
+// The headers PHP receives for a request. Always a copy: event.headers may
+// need merging with event.cookies (AWS HTTP API v2 delivers cookies
+// separately), and the platform's event object must not be mutated.
+function buildRequestHeaders(event) {
+    const requestHeaders = { ...event.headers };
+
+    if (event.cookies) {
+        let cookielist = '';
+        for (let i = 0; i < event.cookies.length; i++) {
+            cookielist += event.cookies[i] + '; ';
+        }
+        requestHeaders.Cookie = cookielist.slice(0, -2);
+    }
+
+    // fetch drops host. We have to grab it on the other side.
+    if (requestHeaders.host) {
+        requestHeaders.injectHost = requestHeaders.host;
+    }
+
+    // Similar workaround here, follow: https://github.com/nodejs/undici/issues/4144
+    if (requestHeaders['transfer-encoding']) {
+        delete requestHeaders['transfer-encoding'];
+    }
+
+    return requestHeaders;
+}
+
 //@TODO: tests
 function shouldCacheControl(url) {
     const parsedUrl = new URL(url);
@@ -389,3 +399,4 @@ module.exports = handler;
 module.exports.validate = validate;
 module.exports.registerPlugin = plugins.register;
 module.exports.getPlugins = plugins.getPlugins;
+module.exports.buildRequestHeaders = buildRequestHeaders;
