@@ -39,5 +39,40 @@ Where
 * docRoot is the path to WordPress files
 * event is the serverless event data from Vercel or Netlify
 
+### Options
+
+| Option | Description |
+| --- | --- |
+| `docRoot` | Path to the PHP files to serve. Required. |
+| `event` | The serverless event data from Vercel, Netlify or AWS. Required. |
+| `routerScript` | Path to a [router script](https://www.php.net/manual/en/features.commandline.webserver.php) for the built-in server. |
+| `phpIniPath` | Path to a php.ini to use instead of the one shipped with this package. |
+| `autoPrependFile` | Path to a PHP file to run before every request, via `auto_prepend_file`. |
+
+`autoPrependFile` runs on every request, so point it at a path that stays
+read-only at runtime (on Lambda-based platforms, the deployment bundle rather
+than `/tmp`).
+
+Caveat when combining it with `routerScript`: PHP's built-in server does not
+apply `auto_prepend_file` to the router script's own execution — only to
+scripts it executes directly after the router returns `false`. A router that
+handles a request inline (e.g. by requiring `index.php`) must load the prepend
+itself:
+
+```php
+$prepend = (string) ini_get('auto_prepend_file');
+if ($prepend !== '' && is_file($prepend)) {
+    require_once $prepend;
+}
+```
+
+```javascript
+return await serverlesswp({
+    docRoot: pathToWP,
+    event: event,
+    autoPrependFile: path.join(process.cwd(), 'wp/wp-content/plugins/my-plugin/bootstrap/prepend.php')
+});
+```
+
 ## License
 MIT

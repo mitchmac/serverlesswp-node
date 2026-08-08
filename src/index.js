@@ -21,7 +21,7 @@ const keepAliveAgent = new http.Agent({ keepAlive: true });
 async function handler(data) {
     await validate(data);
 
-    const { event, docRoot } = data;
+    const { event } = data;
     
     if (!php) {
         const env = {
@@ -30,14 +30,7 @@ async function handler(data) {
             LD_PRELOAD: `${libPath}/libsqlite3.so.0`
         };
 
-        //@TODO: configurable php.ini path
-        let phpArgs = ['-S', '127.0.0.1:8000', '-t', docRoot, '-c', phpIniPath];
-
-        if (data.routerScript) {
-            phpArgs.push(data.routerScript);
-        }
-
-        php = spawn(phpPath, phpArgs, {
+        php = spawn(phpPath, buildPhpArgs(data), {
             env: env,
             cwd: cwd
         });
@@ -312,6 +305,27 @@ async function handler(data) {
     return errorResponse;
 }
 
+// Build the argv for the PHP built-in server.
+//
+// data.phpIniPath overrides the php.ini shipped with this package, and
+// data.autoPrependFile sets auto_prepend_file without needing a custom ini.
+// Both point at files the caller controls; they run on every request, so
+// they belong in a read-only part of the deployment.
+function buildPhpArgs(data) {
+    const args = ['-S', '127.0.0.1:8000', '-t', data.docRoot, '-c', data.phpIniPath || phpIniPath];
+
+    if (data.autoPrependFile) {
+        args.push('-d', `auto_prepend_file=${data.autoPrependFile}`);
+    }
+
+    // php -S takes the router script as its final argument.
+    if (data.routerScript) {
+        args.push(data.routerScript);
+    }
+
+    return args;
+}
+
 // Normalize event.headers in place before plugins run, so preRequest sees
 // the same header shape on every platform and what it sees is what PHP gets.
 function normalizeEventHeaders(event) {
@@ -371,6 +385,22 @@ async function validate(data) {
             throw new Error("The routerScript property is not a valid path.");
         }
     }
+
+    if (data.phpIniPath) {
+        const iniExists = await exists(data.phpIniPath);
+        if (!iniExists) {
+            throw new Error("The phpIniPath property is not a valid path.");
+        }
+    }
+
+    // PHP silently ignores a missing auto_prepend_file, so check it here:
+    // the whole point of the option is that the file runs.
+    if (data.autoPrependFile) {
+        const prependExists = await exists(data.autoPrependFile);
+        if (!prependExists) {
+            throw new Error("The autoPrependFile property is not a valid path.");
+        }
+    }
 }
 
 async function exists(path) {
@@ -400,3 +430,4 @@ module.exports.validate = validate;
 module.exports.registerPlugin = plugins.register;
 module.exports.getPlugins = plugins.getPlugins;
 module.exports.normalizeEventHeaders = normalizeEventHeaders;
+module.exports.buildPhpArgs = buildPhpArgs;

@@ -26,6 +26,16 @@ describe('serverlesswp tests', () => {
     expect(async () => await serverlesswp.validate(args)).rejects.toThrow();
   });
 
+  test('Error with invalid phpIniPath property', () => {
+    const args = {event: {}, docRoot: '/', phpIniPath: '/invalid.ini'}
+    expect(async () => await serverlesswp.validate(args)).rejects.toThrow();
+  });
+
+  test('Error with invalid autoPrependFile property', () => {
+    const args = {event: {}, docRoot: '/', autoPrependFile: '/invalid.php'}
+    expect(async () => await serverlesswp.validate(args)).rejects.toThrow();
+  });
+
   test('Plugin registration', () => {
     serverlesswp.registerPlugin({name: 'foo'});
     serverlesswp.registerPlugin({name: 'bar'});
