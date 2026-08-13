@@ -33,6 +33,24 @@ describe('normalizeEventHeaders', () => {
         expect(event.headers.injectHost).toBe('example.com');
     });
 
+    test.each(['injecthost', 'InjectHost', 'injectHost'])(
+        'replaces a client-supplied %s header with the trusted host',
+        (headerName) => {
+            const event = {
+                headers: {
+                    host: 'example.com',
+                    [headerName]: 'attacker.invalid',
+                },
+            };
+
+            normalizeEventHeaders(event);
+
+            const injectHostHeaders = Object.entries(event.headers)
+                .filter(([name]) => name.toLowerCase() === 'injecthost');
+            expect(injectHostHeaders).toEqual([['injectHost', 'example.com']]);
+        },
+    );
+
     test('removes transfer-encoding', () => {
         const event = { headers: { 'transfer-encoding': 'chunked' } };
         normalizeEventHeaders(event);

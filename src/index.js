@@ -342,6 +342,15 @@ function normalizeEventHeaders(event) {
         event.headers.Cookie = cookielist.slice(0, -2);
     }
 
+    // injectHost is an internal transport header. Discard every casing a
+    // client may have supplied before deriving the only trusted value from
+    // Host.
+    for (const name of Object.keys(event.headers)) {
+        if (name.toLowerCase() === 'injecthost') {
+            delete event.headers[name];
+        }
+    }
+
     // fetch drops host. We have to grab it on the other side.
     if (event.headers.host) {
         event.headers.injectHost = event.headers.host;
