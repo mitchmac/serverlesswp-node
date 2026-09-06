@@ -1,6 +1,6 @@
 {
   "name": "serverlesswp",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Run PHP on Lambda (AWS, Netlify, Vercel)",
   "keywords": [
     "serverless",
@@ -19,17 +19,23 @@
   },
   "files": [
     "src/",
-    "php-files/"
+    "php-files/",
+    "wordpress.js",
+    "wordpress-assets/"
   ],
   "dependencies": {
     "isbinaryfile": "^5.0.0",
-    "wait-on": "^9.0.5"
+    "wait-on": "^9.0.5",
+    "@aws-sdk/client-s3": "^3.772.0",
+    "@vercel/blob": "^2.3.3",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "jest": "^29.5.0"
   },
   "scripts": {
-    "test": "jest --testPathIgnorePatterns 'e2e'",
-    "local-tests": "npm run test && cd tests/e2e && ./local.sh"
+    "test": "jest --testPathIgnorePatterns \"e2e|tests/wordpress|packages/\"",
+    "local-tests": "npm run test && cd tests/e2e && ./local.sh",
+    "test:wordpress": "node --test --test-concurrency=1 tests/wordpress/*.test.js"
   }
 }
