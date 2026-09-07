@@ -71,3 +71,66 @@ return await serverlesswp({
 
 ## License
 MIT
+
+## WordPress starter runtime
+
+```js
+exports.handler = require('serverlesswp/wordpress').handler;
+```
+
+Use the starter's two visible ServerlessWP MU-plugin loaders. Their
+implementations live in `wordpress-assets/` inside this package. `wp-config.php`
+stays entirely in the site: the package provides no shared configuration, does
+not inspect its contents, and does not change it during installation or builds.
+The handler supplies the absolute `SERVERLESSWP_ASSETS_DIR` environment variable
+to PHP. The router and prepend execute from the read-only bundle.
+WordPress is copied to `/tmp/wp` on first use, including custom files and MU
+plugins; SQLite prepares its database drop-in only in that temporary copy and
+refuses to overwrite a custom one. SQLite integration itself stays in the site.
+
+Configuration is optional and must run before the first request:
+
+```js
+const wordpress = require('serverlesswp/wordpress');
+wordpress.configure({
+  sourceDir: require('path').join(process.cwd(), 'wp'),
+  runtimeDir: '/tmp/wp',
+  plugins: [{ name: 'My hooks', async postRequest(event, response) { /* ... */ } }],
+});
+exports.handler = wordpress.handler;
+```
+
+There is one PHP server and plugin registry per process. Initialization is shared
+by concurrent requests. Failed initialization remains failed until a new process
+starts, avoiding partial retries. Custom plugins run after built-in plugins.
+The generic root import does not initialize WordPress or load storage SDKs.
+
+### WordPress updater
+
+Run `node node_modules/serverlesswp/src/wp-update` from the site repository,
+or use the starter's `npm run wp:update` script. The updater retains checksum
+protections: `--plugins` updates site plugins, `--themes` reports available theme
+updates, and `--dry-run` makes no changes. `--root` selects the WordPress directory.
+The package has no general CLI or build step. Netlify static-file preparation
+remains in the starter's `netlify.toml`.
+
+### Maintenance ownership
+
+This package is the source for runtime behavior, framework PHP, storage
+integrations and the WordPress updater. The [WordPress starter repository](https://github.com/mitchmac/ServerlessWP)
+is the source for handlers, MU-plugin loaders, deployment configuration and
+workflows. Sites adopt changes to those files through Git and maintain their own
+configuration and customizations. This package does not ship scaffold templates
+or a scaffold migration command.
+
+### Packaging and tests
+
+Publish `wordpress-assets/` together with `php-files/`, including production
+Composer dependencies and license notices. Build the stream wrapper with
+`packages/serverlesswp-stream-wrapper/build-plugin.sh`; `--check` verifies the
+published copy against the source. Site installs do not run Composer.
+
+Run `npm test` for the generic runtime and `npm run test:wordpress` for storage,
+router, updater, ownership and loader tests. Test `npm pack` in a clean starter
+using its `SERVERLESSWP_LOCAL` Docker fixtures before publication. Deployments
+must explicitly include PHP assets: JavaScript tracing alone is insufficient.
