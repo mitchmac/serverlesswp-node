@@ -1,5 +1,5 @@
 FROM amazonlinux:2023
-ARG PHP_VERSION=8.3.35
+ARG PHP_VERSION=8.3.36
 
 RUN yum -y groups install "Development tools" \
   && yum -y install \
@@ -30,7 +30,7 @@ RUN make install
 WORKDIR /work
 
 # https://www.php.net/downloads.php?os=linux&osvariant=linux-ubuntu&version=default&source=Y
-ARG PHP_SHA256=e279d9ec90d9bcab900d146816e5b11d3e8924b80e2ba36c7d7dae7d71dcbf2d
+ARG PHP_SHA256=46f4b45e3688ed2b1819015a7b532c15b51cc055bdd3b13fd00ddfeebeedcd5f
 RUN curl -fSL https://www.php.net/distributions/php-${PHP_VERSION}.tar.bz2 -o /work/php.tar.bz2 \
   && echo "${PHP_SHA256}  /work/php.tar.bz2" | sha256sum -c -
 
