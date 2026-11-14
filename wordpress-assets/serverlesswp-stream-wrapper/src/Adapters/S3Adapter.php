@@ -23,6 +23,7 @@ class S3Adapter implements StorageAdapterInterface
         bool $forcePathStyle = false,
         ?string $acl = null,
         ?S3Client $client = null,
+        ?string $sessionToken = null,
     ) {
         $this->bucket = $bucket;
         $this->prefix = rtrim($prefix, '/');
@@ -47,6 +48,11 @@ class S3Adapter implements StorageAdapterInterface
 
         if ($key && $secret) {
             $config['credentials'] = ['key' => $key, 'secret' => $secret];
+            // Temporary credentials (STS AssumeRole, IAM Identity Center, ...)
+            // are only valid together with their session token.
+            if ($sessionToken) {
+                $config['credentials']['token'] = $sessionToken;
+            }
         }
 
         $this->client = new S3Client($config);

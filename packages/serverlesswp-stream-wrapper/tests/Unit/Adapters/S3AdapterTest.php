@@ -312,4 +312,52 @@ class S3AdapterTest extends TestCase
         $this->assertTrue($result);
         $this->assertSame(0, $mock->count());
     }
+
+    private function credentialsOf(S3Adapter $adapter): \Aws\Credentials\CredentialsInterface
+    {
+        $client = (new \ReflectionProperty(S3Adapter::class, 'client'))->getValue($adapter);
+        return $client->getCredentials()->wait();
+    }
+
+    public function testSessionTokenIsSentWithStaticCredentials(): void
+    {
+        $adapter = new S3Adapter(
+            bucket:       'test-bucket',
+            key:          'ASIAEXAMPLE',
+            secret:       'secret',
+            sessionToken: 'session-token',
+        );
+
+        $credentials = $this->credentialsOf($adapter);
+        $this->assertSame('ASIAEXAMPLE', $credentials->getAccessKeyId());
+        $this->assertSame('secret', $credentials->getSecretKey());
+        $this->assertSame('session-token', $credentials->getSecurityToken());
+    }
+
+    public function testStaticCredentialsWithoutSessionTokenHaveNone(): void
+    {
+        $adapter = new S3Adapter(bucket: 'test-bucket', key: 'AKIAEXAMPLE', secret: 'secret');
+
+        $this->assertNull($this->credentialsOf($adapter)->getSecurityToken());
+    }
+
+    public function testSessionTokenIsSignedIntoRequests(): void
+    {
+        $sent    = null;
+        $adapter = new S3Adapter(
+            bucket:       'test-bucket',
+            key:          'ASIAEXAMPLE',
+            secret:       'secret',
+            sessionToken: 'session-token',
+        );
+        $client = (new \ReflectionProperty(S3Adapter::class, 'client'))->getValue($adapter);
+        $client->getHandlerList()->setHandler(function ($command, $request) use (&$sent) {
+            $sent = $request;
+            return \GuzzleHttp\Promise\Create::promiseFor(new Result(['@metadata' => ['statusCode' => 204]]));
+        });
+
+        $this->assertTrue($adapter->delete('uploads/photo.jpg'));
+        $this->assertNotNull($sent, 'no request was sent');
+        $this->assertSame('session-token', $sent->getHeaderLine('X-Amz-Security-Token'));
+    }
 }

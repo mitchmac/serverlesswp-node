@@ -142,6 +142,18 @@ class ConfigTest extends TestCase
         $this->assertSame('secret', $config->s3Secret());
     }
 
+    public function testS3SessionToken(): void
+    {
+        putenv('SERVERLESSWP_STREAM_S3_SESSION_TOKEN=session-token');
+        $this->assertSame('session-token', (new Config())->s3SessionToken());
+
+        putenv('SERVERLESSWP_STREAM_S3_SESSION_TOKEN=');
+        $this->assertNull((new Config())->s3SessionToken());
+
+        $this->unsetEnv('SERVERLESSWP_STREAM_S3_SESSION_TOKEN');
+        $this->assertNull((new Config())->s3SessionToken());
+    }
+
     public function testS3PrefixStripsTrailingSlash(): void
     {
         putenv('SERVERLESSWP_STREAM_S3_PREFIX=my/prefix/');
@@ -327,6 +339,7 @@ class ConfigTest extends TestCase
             'SERVERLESSWP_STREAM_S3_ENDPOINT',
             'SERVERLESSWP_STREAM_S3_KEY',
             'SERVERLESSWP_STREAM_S3_SECRET',
+            'SERVERLESSWP_STREAM_S3_SESSION_TOKEN',
             'SERVERLESSWP_STREAM_VERCEL_TOKEN',
             'SERVERLESSWP_STREAM_VERCEL_STORE_ID',
             'BLOB_READ_WRITE_TOKEN',
