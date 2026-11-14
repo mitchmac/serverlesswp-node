@@ -38,6 +38,9 @@ class Plugin
 
         add_action('template_redirect', [$this, 'serveRemoteFile'], 1);
 
+        // Core can't delete remote attachment files itself.
+        add_action('delete_attachment', [$this, 'deleteRemoteAttachmentFiles']);
+
         add_action('admin_notices', [$this, 'renderBlockedNotice']);
     }
 
@@ -294,6 +297,64 @@ class Plugin
         }
 
         return $metadata;
+    }
+
+    /**
+     * Deletes a remote attachment's files when the attachment is deleted.
+     *
+     * wp_delete_attachment_files() only unlinks a file after
+     * wp_delete_file_from_directory() confirms, with realpath(), that it sits
+     * inside the uploads directory. realpath() doesn't go through stream
+     * wrappers, so for a file that exists only in remote storage it returns
+     * false and core deletes nothing: the original, every image size and any
+     * edit backups stay in the bucket. This runs the same deletions first,
+     * through the wrapper, for paths under the uploads directory that are
+     * routed remotely. Core's own pass then finds nothing left to delete.
+     */
+    public function deleteRemoteAttachmentFiles(int $postId): void
+    {
+        if (!StreamWrapper::isRegistered()) {
+            return;
+        }
+
+        $file = get_attached_file($postId);
+        if (!$file) {
+            return;
+        }
+
+        $basedir = trailingslashit(wp_normalize_path(wp_get_upload_dir()['basedir']));
+        $dir     = dirname($file);
+
+        $paths = [$file];
+        $meta  = wp_get_attachment_metadata($postId);
+        if (is_array($meta)) {
+            foreach ((array) ($meta['sizes'] ?? []) as $size) {
+                if (!empty($size['file'])) {
+                    $paths[] = path_join($dir, $size['file']);
+                }
+            }
+            if (!empty($meta['original_image'])) {
+                $paths[] = path_join($dir, $meta['original_image']);
+            }
+        }
+        foreach ((array) get_post_meta($postId, '_wp_attachment_backup_sizes', true) as $size) {
+            if (is_array($size) && !empty($size['file'])) {
+                $paths[] = path_join($dir, $size['file']);
+            }
+        }
+
+        foreach (array_unique($paths) as $path) {
+            $path = wp_normalize_path($path);
+            // Core's containment rule, applied to the path itself since there
+            // is no local file to resolve: under uploads, with no dot segments.
+            $relative = substr($path, strlen($basedir));
+            if (!str_starts_with($path, $basedir) || preg_match('#(^|/)\.\.?(/|$)#', $relative)) {
+                continue;
+            }
+            if (StreamWrapper::isRemotePath($path)) {
+                wp_delete_file($path);
+            }
+        }
     }
 
     private function notPersisted(string $absolutePath, string $pushStatus): bool
