@@ -3,7 +3,9 @@ on: [push, pull_request]
 jobs:
   jest:
     name: Jest tests
-    runs-on: ubuntu-latest
+    # The bundled php-files/php links libxml2.so.2 (as on Lambda's Amazon
+    # Linux); ubuntu-latest moved to 26.04, which doesn't provide it.
+    runs-on: ubuntu-24.04
     steps:
 
       - name: Checkout
