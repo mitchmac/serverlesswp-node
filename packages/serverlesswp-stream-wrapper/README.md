@@ -60,6 +60,7 @@ All configuration is via environment variables (or PHP constants of the same nam
 | `SERVERLESSWP_STREAM_S3_ENDPOINT` | Custom endpoint URL — use for MinIO/R2 or other S3-compatible stores (fallback: `SQLITE_S3_ENDPOINT`) |
 | `SERVERLESSWP_STREAM_S3_KEY` | Access key ID (fallback: `SQLITE_S3_API_KEY`, `S3_KEY_ID`). Omit to use the IAM role (recommended on Lambda). |
 | `SERVERLESSWP_STREAM_S3_SECRET` | Secret access key (fallback: `SQLITE_S3_API_SECRET`, `S3_ACCESS_KEY`). Omit to use the IAM role. |
+| `SERVERLESSWP_STREAM_S3_SESSION_TOKEN` | Session token for temporary credentials (e.g. from STS `AssumeRole`), used with `SERVERLESSWP_STREAM_S3_KEY` and `SERVERLESSWP_STREAM_S3_SECRET`. |
 | `SERVERLESSWP_STREAM_S3_FORCE_PATH_STYLE` | Force path-style addressing even without a custom endpoint (fallback: `SQLITE_S3_FORCE_PATH_STYLE`) |
 | `SERVERLESSWP_STREAM_S3_ACL` | Canned ACL applied to writes, e.g. `public-read` (default: bucket default) |
 

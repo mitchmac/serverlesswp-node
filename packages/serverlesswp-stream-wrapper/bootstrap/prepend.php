@@ -65,6 +65,7 @@ $adapter = match ($provider) {
         endpoint:       $config->s3Endpoint(),
         key:            $config->s3Key(),
         secret:         $config->s3Secret(),
+        sessionToken:   $config->s3SessionToken(),
         forcePathStyle: $config->s3ForcePathStyle(),
         acl:            $config->s3Acl(),
     ),

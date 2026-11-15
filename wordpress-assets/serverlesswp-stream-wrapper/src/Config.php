@@ -19,6 +19,7 @@ class Config
     private ?string $s3Endpoint;
     private ?string $s3Key;
     private ?string $s3Secret;
+    private ?string $s3SessionToken;
     private bool $s3ForcePathStyle;
     private ?string $s3Acl;
     private string $cacheControl;
@@ -47,6 +48,7 @@ class Config
         $this->s3Endpoint       = $this->readFirst(['SERVERLESSWP_STREAM_S3_ENDPOINT', 'SQLITE_S3_ENDPOINT']);
         $this->s3Key            = $this->readFirst(['SERVERLESSWP_STREAM_S3_KEY', 'SQLITE_S3_API_KEY', 'S3_KEY_ID']);
         $this->s3Secret         = $this->readFirst(['SERVERLESSWP_STREAM_S3_SECRET', 'SQLITE_S3_API_SECRET', 'S3_ACCESS_KEY']);
+        $this->s3SessionToken   = $this->readFirst(['SERVERLESSWP_STREAM_S3_SESSION_TOKEN']);
         $this->s3ForcePathStyle = $this->truthy($this->readFirst(['SERVERLESSWP_STREAM_S3_FORCE_PATH_STYLE', 'SQLITE_S3_FORCE_PATH_STYLE']));
         $this->s3Acl            = $this->readNullable('SERVERLESSWP_STREAM_S3_ACL');
 
@@ -201,6 +203,11 @@ class Config
     public function s3Secret(): ?string
     {
         return $this->s3Secret;
+    }
+
+    public function s3SessionToken(): ?string
+    {
+        return $this->s3SessionToken;
     }
 
     public function s3ForcePathStyle(): bool
