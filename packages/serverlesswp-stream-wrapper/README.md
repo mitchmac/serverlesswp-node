@@ -22,6 +22,12 @@ attachment whose file disappears with the container. An image size that cannot b
 dropped from the attachment metadata so WordPress falls back to a size that exists, instead
 of putting a broken image in every `srcset`.
 
+**Deleting an attachment deletes its stored files.** Core checks that each file it is
+about to delete sits inside the uploads directory with `realpath()`, which doesn't go
+through stream wrappers, so on its own it deletes nothing for a file that exists only in
+storage. The plugin deletes the original, every image size and any edit backups through
+the wrapper on `delete_attachment`, applying the same containment rule to the path.
+
 **`rmdir()` keeps native semantics.** It fails on a non-empty directory. Code that means to
 delete a tree walks it and removes each entry first — the wrapper does not delete
 descendants the caller never named.
