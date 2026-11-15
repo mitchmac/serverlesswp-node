@@ -40,17 +40,15 @@ services:
       timeout: 5s
       retries: 12
 
+  # MinIO no longer publishes images (Docker Hub and Quay); pgsty/minio is a
+  # maintained community build. minio-setup waits for it with mc instead of a
+  # healthcheck here, which would need curl inside this image.
   minio:
-    image: minio/minio
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
 
   blob:
     image: node:20-alpine
@@ -64,13 +62,19 @@ services:
       - ./blob-emulator:/emulator:ro
 
   minio-setup:
-    image: minio/mc
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
     depends_on:
       minio:
-        condition: service_healthy
+        condition: service_started
+    # Retries until the server answers, giving up after a minute.
     entrypoint: >
       /bin/sh -c "
-        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        tries=0;
+        until mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null 2>&1; do
+          tries=$$((tries + 1));
+          if [ $$tries -ge 60 ]; then echo 'minio did not come up' >&2; exit 1; fi;
+          sleep 1;
+        done &&
         mc mb local/wp-uploads --ignore-existing &&
         mc anonymous set public local/wp-uploads
       "
