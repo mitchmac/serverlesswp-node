@@ -134,3 +134,15 @@ Run `npm test` for the generic runtime and `npm run test:wordpress` for storage,
 router, updater, ownership and loader tests. Test `npm pack` in a clean starter
 using its `SERVERLESSWP_LOCAL` Docker fixtures before publication. Deployments
 must explicitly include PHP assets: JavaScript tracing alone is insufficient.
+
+## Updating PHP
+
+`php-files/` holds a PHP binary built in Amazon Linux 2023 by
+`build/Dockerfile`. The **Update PHP** workflow checks php.net daily for a new
+release of the PHP branch the Dockerfile is on, builds it, runs the tests and
+opens a pull request with the new binaries and a patch version bump. Run it from
+the Actions tab to build a specific version (`8.3.37`, or `8.4` for the latest
+8.4.x) or to rebuild the current one.
+
+To do the same locally, run `build/update-php-version.sh [version]` to set the
+version and SHA-256 in the Dockerfile, then `build/build.sh` (requires Docker).

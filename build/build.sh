@@ -1,27 +1,43 @@
 #!/bin/sh
+# Build PHP in Amazon Linux 2023 (build/Dockerfile) and copy the binary, the
+# opcache extension and the shared libraries it needs into php-files/.
 
-rm ../php-files/php ../php-files/exts/* ../php-files/lib/*
+set -eu
 
-docker build -t lambda-php81 .
-container=$(docker create lambda-php81)
+cd "$(dirname "$0")"
 
-docker -D cp $container:/work/php-81-bin/bin/php ../php-files/php
-docker -D cp $container:/work/php-81-bin/lib/php/extensions/no-debug-non-zts-20230831/opcache.so ../php-files/exts/
+image=lambda-php81
 
-docker -D cp -L $container:/usr/lib64/libsqlite3.so.0.8.6 ../php-files/lib/libsqlite3.so.0
-docker -D cp -L $container:/usr/lib64/libcrypt.so.2 ../php-files/lib/libcrypt.so.2
-docker -D cp -L $container:/usr/lib64/libpng16.so.16 ../php-files/lib/libpng16.so.16
-docker -D cp -L $container:/usr/lib64/libfreetype.so.6 ../php-files/lib/libfreetype.so.6
-docker -D cp -L $container:/usr/lib64/libonig.so.5 ../php-files/lib/libonig.so.5
-docker -D cp -L $container:/usr/lib64/libzip.so.5 ../php-files/lib/libzip.so.5
-docker -D cp -L $container:/usr/lib64/libharfbuzz.so.0 ../php-files/lib/libharfbuzz.so.0
-docker -D cp -L $container:/usr/lib64/libbrotlidec.so.1 ../php-files/lib/libbrotlidec.so.1
-docker -D cp -L $container:/usr/lib64/libgraphite2.so.3 ../php-files/lib/libgraphite2.so.3
-docker -D cp -L $container:/usr/lib64/libbrotlicommon.so.1 ../php-files/lib/libbrotlicommon.so.1
-docker -D cp -L $container:/usr/lib64/libjpeg.so.62 ../php-files/lib/libjpeg.so.62
-docker -D cp -L $container:/usr/lib64/libwebp.so.7 ../php-files/lib/libwebp.so.7
+docker build -t "$image" .
+container=$(docker create "$image")
+trap 'docker rm "$container" > /dev/null' EXIT
 
-docker rm $container
+# The extension directory name carries PHP's API version
+# (no-debug-non-zts-20230831 for 8.3), so ask the build for it.
+ext_dir=$(docker run --rm "$image" /work/php-81-bin/bin/php-config --extension-dir)
+
+rm -f ../php-files/php ../php-files/exts/* ../php-files/lib/*
+mkdir -p ../php-files/exts ../php-files/lib
+
+docker cp "$container:/work/php-81-bin/bin/php" ../php-files/php
+docker cp "$container:$ext_dir/opcache.so" ../php-files/exts/
+
+for lib in \
+  libsqlite3.so.0 \
+  libcrypt.so.2 \
+  libpng16.so.16 \
+  libfreetype.so.6 \
+  libonig.so.5 \
+  libzip.so.5 \
+  libharfbuzz.so.0 \
+  libbrotlidec.so.1 \
+  libgraphite2.so.3 \
+  libbrotlicommon.so.1 \
+  libjpeg.so.62 \
+  libwebp.so.7
+do
+  docker cp -L "$container:/usr/lib64/$lib" "../php-files/lib/$lib"
+done
 
 strip ../php-files/php
 strip ../php-files/lib/*.so.*
