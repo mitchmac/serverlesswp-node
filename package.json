@@ -1,6 +1,6 @@
 {
   "name": "serverlesswp",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Run PHP on Lambda (AWS, Netlify, Vercel)",
   "keywords": [
     "serverless",
@@ -24,11 +24,11 @@
     "wordpress-assets/"
   ],
   "dependencies": {
-    "isbinaryfile": "^5.0.0",
-    "wait-on": "^9.0.5",
     "@aws-sdk/client-s3": "^3.772.0",
     "@vercel/blob": "^2.3.3",
-    "sqlite3": "^5.1.7"
+    "isbinaryfile": "^5.0.0",
+    "sqlite3": "^5.1.7",
+    "wait-on": "^9.0.5"
   },
   "devDependencies": {
     "jest": "^29.5.0"
