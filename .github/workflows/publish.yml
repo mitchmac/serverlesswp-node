@@ -1,0 +1,86 @@
+name: Publish to npm
+# Stages the package as it is on main, at the version in package.json, for
+# release on npm. Run it from the Actions tab after merging a version bump
+# (the Update PHP PRs bump the patch version).
+#
+# Uses npm trusted publishing with staged publishing: no npm token is stored
+# here, and the workflow cannot release on its own. Nothing goes live until a
+# maintainer approves the staged version with 2FA, in the package's Staged
+# Packages tab on npmjs.com or with `npm stage approve <stage-id>`.
+#
+# On npmjs.com, under the serverlesswp package's Settings > Trusted Publisher,
+# add GitHub Actions with repository mitchmac/serverlesswp-node and workflow
+# publish.yml, leaving "Allow npm publish" unchecked.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write  # create the draft release
+  id-token: write  # npm trusted publishing and provenance
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish
+    # The bundled php links libxml2.so.2, which ubuntu-latest (26.04) lacks.
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      # Staged publishing needs npm 11.15.0 or later; Node 22 ships npm 10.
+      - name: Update npm
+        run: npm install -g npm@11
+
+      - name: Check the version is unpublished
+        id: version
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version > /dev/null 2>&1; then
+            echo "$name@$version is already on npm. Bump the version in package.json first." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+
+      - run: npm run test
+      - run: npm run test:wordpress
+
+      - name: Check the bundled stream wrapper matches its source
+        run: ./packages/serverlesswp-stream-wrapper/build-plugin.sh --check
+
+      - name: Stage on npm
+        run: npm stage publish --access public
+
+      # A draft, so there is no tag or release for a version that has not been
+      # approved. Publish it from the Releases page after approving on npm.
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh release create "v$VERSION" --draft --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          {
+            echo "serverlesswp@$VERSION is staged on npm and is not live yet."
+            echo
+            echo "1. Approve it in the Staged Packages tab at https://www.npmjs.com/package/serverlesswp (2FA required)."
+            echo "2. Then publish the draft release v$VERSION from the Releases page."
+          } >> "$GITHUB_STEP_SUMMARY"
