@@ -1,17 +1,22 @@
 name: Publish to npm
-# Publishes the package as it is on main, at the version in package.json.
-# Run it from the Actions tab after merging a version bump (the Update PHP
-# PRs bump the patch version).
+# Stages the package as it is on main, at the version in package.json, for
+# release on npm. Run it from the Actions tab after merging a version bump
+# (the Update PHP PRs bump the patch version).
 #
-# Uses npm trusted publishing: no npm token is stored here. On npmjs.com,
-# under the serverlesswp package's Settings > Trusted Publisher, add GitHub
-# Actions with repository mitchmac/serverlesswp-node and workflow publish.yml.
+# Uses npm trusted publishing with staged publishing: no npm token is stored
+# here, and the workflow cannot release on its own. Nothing goes live until a
+# maintainer approves the staged version with 2FA, in the package's Staged
+# Packages tab on npmjs.com or with `npm stage approve <stage-id>`.
+#
+# On npmjs.com, under the serverlesswp package's Settings > Trusted Publisher,
+# add GitHub Actions with repository mitchmac/serverlesswp-node and workflow
+# publish.yml, leaving "Allow npm publish" unchecked.
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # create the release and its tag
+  contents: write  # create the draft release
   id-token: write  # npm trusted publishing and provenance
 
 concurrency:
@@ -35,7 +40,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'package-lock.json'
 
-      # Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
+      # Staged publishing needs npm 11.15.0 or later; Node 22 ships npm 10.
       - name: Update npm
         run: npm install -g npm@11
 
@@ -58,11 +63,24 @@ jobs:
       - name: Check the bundled stream wrapper matches its source
         run: ./packages/serverlesswp-stream-wrapper/build-plugin.sh --check
 
-      - name: Publish
-        run: npm publish --provenance --access public
+      - name: Stage on npm
+        run: npm stage publish --access public
 
-      - name: Create GitHub release
+      # A draft, so there is no tag or release for a version that has not been
+      # approved. Publish it from the Releases page after approving on npm.
+      - name: Create draft GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
-        run: gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
+        run: gh release create "v$VERSION" --draft --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          {
+            echo "serverlesswp@$VERSION is staged on npm and is not live yet."
+            echo
+            echo "1. Approve it in the Staged Packages tab at https://www.npmjs.com/package/serverlesswp (2FA required)."
+            echo "2. Then publish the draft release v$VERSION from the Releases page."
+          } >> "$GITHUB_STEP_SUMMARY"
