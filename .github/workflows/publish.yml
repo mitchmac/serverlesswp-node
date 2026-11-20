@@ -1,0 +1,68 @@
+name: Publish to npm
+# Publishes the package as it is on main, at the version in package.json.
+# Run it from the Actions tab after merging a version bump (the Update PHP
+# PRs bump the patch version).
+#
+# Uses npm trusted publishing: no npm token is stored here. On npmjs.com,
+# under the serverlesswp package's Settings > Trusted Publisher, add GitHub
+# Actions with repository mitchmac/serverlesswp-node and workflow publish.yml.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write  # create the release and its tag
+  id-token: write  # npm trusted publishing and provenance
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish
+    # The bundled php links libxml2.so.2, which ubuntu-latest (26.04) lacks.
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      # Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
+      - name: Update npm
+        run: npm install -g npm@11
+
+      - name: Check the version is unpublished
+        id: version
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version > /dev/null 2>&1; then
+            echo "$name@$version is already on npm. Bump the version in package.json first." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+
+      - run: npm run test
+      - run: npm run test:wordpress
+
+      - name: Check the bundled stream wrapper matches its source
+        run: ./packages/serverlesswp-stream-wrapper/build-plugin.sh --check
+
+      - name: Publish
+        run: npm publish --provenance --access public
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
