@@ -1,0 +1,183 @@
+name: Update PHP
+# Builds PHP from build/Dockerfile and opens a pull request with the new
+# binaries in php-files/.
+#
+# Runs daily and opens a PR when php.net has a newer release of the PHP
+# branch the Dockerfile is on (e.g. 8.3.x). Run it by hand from the Actions
+# tab to build a specific version or to rebuild the current one.
+#
+# PRs opened with the default GITHUB_TOKEN do not trigger the other workflows
+# (Jest, e2e). To have them run on the PR, add a fine-grained token with
+# contents and pull-requests write access as the PHP_UPDATE_TOKEN secret.
+# With the default token, "Allow GitHub Actions to create and approve pull
+# requests" must be enabled under Settings > Actions > General.
+
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+    inputs:
+      php_version:
+        description: 'PHP version, e.g. 8.3.37, or 8.4 for the latest 8.4.x. Empty: latest release of the current branch.'
+        required: false
+        default: ''
+      rebuild:
+        description: 'Build and open a PR even if the version is unchanged (picks up newer Amazon Linux libraries).'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-php
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: build and open PR
+    # The bundled php links libxml2.so.2, which ubuntu-latest (26.04) lacks;
+    # the Jest run below needs it.
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch' || github.repository_owner == 'mitchmac'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve PHP release
+        id: php
+        run: ./build/update-php-version.sh "$REQUESTED"
+        env:
+          REQUESTED: ${{ inputs.php_version }}
+
+      - name: Decide whether to build
+        id: plan
+        env:
+          CHANGED: ${{ steps.php.outputs.changed }}
+          VERSION: ${{ steps.php.outputs.version }}
+          REBUILD: ${{ inputs.rebuild }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$CHANGED" = true ]; then
+            branch="update-php/$VERSION"
+          elif [ "$REBUILD" = true ]; then
+            branch="update-php/$VERSION-rebuild"
+          else
+            echo "PHP $VERSION is already in build/Dockerfile; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # A scheduled run leaves an existing PR branch alone, so review isn't
+          # disturbed by a daily rebuild. A manual run replaces it.
+          if [ "$EVENT" = schedule ] && git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "Branch $branch already exists; not rebuilding." >> "$GITHUB_STEP_SUMMARY"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "build=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build PHP
+        if: steps.plan.outputs.build == 'true'
+        run: ./build/build.sh
+
+      - name: Check the binary
+        if: steps.plan.outputs.build == 'true'
+        id: check
+        env:
+          VERSION: ${{ steps.php.outputs.version }}
+        working-directory: ./php-files
+        run: |
+          export LD_LIBRARY_PATH="$PWD/lib"
+          ./php -c php.ini -v | tee "$RUNNER_TEMP/version.txt"
+          grep -q "^PHP $VERSION " "$RUNNER_TEMP/version.txt"
+          ./php -c php.ini -v | grep -q "Zend OPcache"
+          for ext in curl gd mbstring mysqli openssl pdo_mysql pdo_sqlite sqlite3 zip exif; do
+            ./php -c php.ini -m | grep -qix "$ext" || { echo "Missing extension: $ext"; exit 1; }
+          done
+          {
+            echo 'version<<EOF'
+            cat "$RUNNER_TEMP/version.txt"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.plan.outputs.build == 'true'
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      - name: Run tests against the new binary
+        if: steps.plan.outputs.build == 'true'
+        run: |
+          npm ci
+          npm run test
+          npm run test:wordpress
+
+      - name: Bump package version
+        if: steps.plan.outputs.build == 'true'
+        id: package
+        run: |
+          version=$(node -p "require('./package.json').version.split('.').map((n, i) => i === 2 ? +n + 1 : n).join('.')")
+          npm pkg set version="$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Write PR description
+        if: steps.plan.outputs.build == 'true'
+        env:
+          PREVIOUS: ${{ steps.php.outputs.previous }}
+          VERSION: ${{ steps.php.outputs.version }}
+          SHA256: ${{ steps.php.outputs.sha256 }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+          PHP_V: ${{ steps.check.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          major=${VERSION%%.*}
+          {
+            if [ "$PREVIOUS" = "$VERSION" ]; then
+              echo "Rebuilds PHP $VERSION with the current Amazon Linux 2023 packages."
+            else
+              echo "Updates PHP from $PREVIOUS to $VERSION ([changelog](https://www.php.net/ChangeLog-$major.php#$VERSION))."
+            fi
+            echo
+            echo "- \`php-$VERSION.tar.bz2\` SHA-256: \`$SHA256\` (from php.net's release API, checked during the build)"
+            echo "- Package version: $PACKAGE_VERSION"
+            echo "- Built and tested by [this workflow run]($RUN_URL): \`npm run test\` and \`npm run test:wordpress\` passed against the new binary."
+            echo
+            echo '```'
+            echo "$PHP_V"
+            echo '```'
+            echo
+            echo 'Changed files:'
+            echo
+            echo '```'
+            git diff --stat
+            echo '```'
+          } > "$RUNNER_TEMP/pr-body.md"
+
+      - name: Open pull request
+        if: steps.plan.outputs.build == 'true'
+        id: pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.PHP_UPDATE_TOKEN || github.token }}
+          branch: ${{ steps.plan.outputs.branch }}
+          add-paths: |
+            build/Dockerfile
+            php-files/**
+            package.json
+          commit-message: PHP ${{ steps.php.outputs.version }}
+          title: PHP ${{ steps.php.outputs.version }}
+          body-path: ${{ runner.temp }}/pr-body.md
+          delete-branch: true
+
+      - name: Summary
+        if: steps.pr.outputs.pull-request-url
+        env:
+          PR_URL: ${{ steps.pr.outputs.pull-request-url }}
+        run: |
+          echo "Pull request: $PR_URL" >> "$GITHUB_STEP_SUMMARY"
